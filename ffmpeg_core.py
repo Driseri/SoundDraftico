@@ -6,6 +6,7 @@ import signal
 import time
 
 def get_audio_lines():
+    """Get Audio Sources"""
     result = subprocess.run(
         ['ffmpeg', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8" 
