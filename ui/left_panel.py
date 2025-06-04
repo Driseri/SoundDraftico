@@ -6,13 +6,67 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QPushButton,
     QLabel,
+    QScrollArea,
 )
 from PyQt6.QtCore import Qt, QTimer
+import subprocess, sys
 from ffmpeg_core import FFmpegProgressWatcher, get_audio_lines
+import os, datetime
+
+def open_in_folder(path: str):
+    """Open the folder containing the given file."""
+    folder = os.path.abspath(os.path.dirname(path))
+    if sys.platform.startswith("win"):
+        os.startfile(folder)
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", folder])
+    else:
+        subprocess.Popen(["xdg-open", folder])
+
+
+class RecordItem(QFrame):
+    """UI widget representing a saved recording."""
+
+    def __init__(self, path: str, parent=None):
+        super().__init__(parent)
+        self.path = path
+        self.setStyleSheet(
+            f"""
+            QFrame {{
+                background: #222A36;
+                border-radius: 12px;
+            }}
+            QLabel {{ color: {LABEL_TEXT}; font-size: 15px; }}
+            QPushButton {{
+                background: #323B4A;
+                color: {LABEL_TEXT};
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                padding-bottom: 2px;
+            }}
+            QPushButton:hover {{ background: #48516B; }}
+            """
+        )
+        hbox = QHBoxLayout(self)
+        hbox.setContentsMargins(16, 8, 16, 8)
+        hbox.setSpacing(12)
+
+        name_lbl = QLabel(os.path.basename(path))
+        hbox.addWidget(name_lbl, stretch=1)
+
+        show_btn = QPushButton("📂")
+        show_btn.setFixedWidth(36)
+        show_btn.clicked.connect(lambda: open_in_folder(path))
+        hbox.addWidget(show_btn)
+
+        transcribe_btn = QPushButton("✎")
+        transcribe_btn.setFixedWidth(36)
+        hbox.addWidget(transcribe_btn)
+
 from style import *
 from ui.settings_panel import SettingsPanel
 from ui.settings_manager import SettingsManager
-import os, datetime
 
 class LeftPanel(QFrame):
     def __init__(self, console_panel):
@@ -130,17 +184,28 @@ class LeftPanel(QFrame):
                 border-radius: 12px;
             }
             QLabel {
-                color: #AAB8CC;
                 font-size: 15px;
             }
             """
         )
-        info_vbox = QVBoxLayout(self.record_frame)
-        info_vbox.setContentsMargins(16, 8, 16, 8)
+
+        info_hbox = QHBoxLayout(self.record_frame)
+        info_hbox.setContentsMargins(16, 8, 16, 8)
+        info_hbox.setSpacing(12)
+
         self.file_lbl = QLabel()
+        self.file_lbl.setStyleSheet(f"color: {COLOR_ACCENT};")
+
         self.time_lbl = QLabel("00:00:00")
-        info_vbox.addWidget(self.file_lbl)
-        info_vbox.addWidget(self.time_lbl)
+        self.time_lbl.setStyleSheet(f"color: {LABEL_TEXT};")
+
+        self.size_lbl = QLabel("0 KB")
+        self.size_lbl.setStyleSheet(f"color: {SETTINGS_TEXT};")
+
+        info_hbox.addWidget(self.file_lbl)
+        info_hbox.addWidget(self.time_lbl)
+        info_hbox.addWidget(self.size_lbl)
+
         self.record_frame.setVisible(False)
         left_main_vbox.addWidget(self.record_frame)
 
@@ -150,29 +215,24 @@ class LeftPanel(QFrame):
         self.btn_stop.clicked.connect(self.stop_record)
 
 
-        # Статус и имитация текста
-        status_lbl = QLabel("Status")
-        status_lbl.setStyleSheet(f"color: {LABEL_TEXT}; font-size:16px; font-weight: bold; margin-left:18px;")
+        # --- Список записей ---
+        status_lbl = QLabel("Записи")
+        status_lbl.setStyleSheet(
+            f"color: {LABEL_TEXT}; font-size:16px; font-weight: bold; margin-left:18px;"
+        )
         left_main_vbox.addWidget(status_lbl)
 
-        for _ in range(2):
-            txt = QLabel("ТЕКСТ")
-            txt.setStyleSheet(f"color: {TRANSCRIPT_TEXT}; font-size: 22px; font-weight: bold; margin-left:28px;")
-            left_main_vbox.addWidget(txt)
-            line = QFrame()
-            line.setFixedHeight(7)
-            line.setFixedWidth(170)
-            line.setStyleSheet(f"background: {LINE}; border-radius: 3px; margin-left:32px;")
-            left_main_vbox.addWidget(line)
-        txt = QLabel("ТЕКСТ")
-        txt.setStyleSheet(f"color: {TRANSCRIPT_TEXT}; font-size: 22px; font-weight: bold; margin-left:28px;")
-        left_main_vbox.addWidget(txt)
-        line = QFrame()
-        line.setFixedHeight(7)
-        line.setFixedWidth(140)
-        line.setStyleSheet(f"background: {LINE}; border-radius: 3px; margin-left:32px;")
-        left_main_vbox.addWidget(line)
-        left_main_vbox.addStretch(1)
+        self.records_scroll = QScrollArea()
+        self.records_scroll.setWidgetResizable(True)
+        self.records_scroll.setStyleSheet("background: transparent; border: none;")
+        self.records_widget = QWidget()
+        self.records_layout = QVBoxLayout(self.records_widget)
+        self.records_layout.setContentsMargins(18, 4, 18, 4)
+        self.records_layout.setSpacing(8)
+        self.records_scroll.setWidget(self.records_widget)
+        left_main_vbox.addWidget(self.records_scroll, 1)
+
+        self._load_records()
 
         # --- Экран настроек
         self.left_settings_widget = SettingsPanel(self.show_main, self.settings)
@@ -218,6 +278,7 @@ class LeftPanel(QFrame):
         self.progress_timer.start(1000)   # раз в сек
         self.file_lbl.setText(os.path.basename(out_file))
         self.time_lbl.setText("00:00:00")
+        self.size_lbl.setText("0 KB")
         self.record_frame.setVisible(True)
 
     def stop_record(self):
@@ -233,6 +294,13 @@ class LeftPanel(QFrame):
             msg = f"Saved: {result['output_file']} · {result['duration']}"
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), msg, "#4DC3F6")])
             self.time_lbl.setText(result["duration"])
+            self.size_lbl.setText(self._format_size(result.get("size_bytes", 0)))
+            # persist record info
+            records = self.settings.records()
+            if result["output_file"] not in records:
+                records.append(result["output_file"])
+                self.settings.set_records(records)
+            self._add_record_item(result["output_file"])
         else:
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), "ERROR Record failed", "#FF7043")])
         self.ffmpeg = None
@@ -244,4 +312,28 @@ class LeftPanel(QFrame):
             txt = f"{out_time}  {int(size)//1024} KB  {speed}"
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), txt, "#AAB8CC")])
             self.time_lbl.setText(out_time)
+            try:
+                bytes_size = int(size)
+            except ValueError:
+                bytes_size = 0
+            self.size_lbl.setText(self._format_size(bytes_size))
+
+    def _format_size(self, bytes_size: int) -> str:
+        if bytes_size >= 1024 ** 3:
+            return f"{bytes_size / (1024 ** 3):.1f} GB"
+        elif bytes_size >= 1024 ** 2:
+            return f"{bytes_size / (1024 ** 2):.1f} MB"
+        elif bytes_size >= 1024:
+            return f"{bytes_size / 1024:.1f} KB"
+        else:
+            return f"{bytes_size} B"
+
+    def _load_records(self):
+        for path in self.settings.records():
+            if os.path.exists(path):
+                self._add_record_item(path)
+
+    def _add_record_item(self, path: str):
+        item = RecordItem(path)
+        self.records_layout.addWidget(item)
 
