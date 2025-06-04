@@ -3,12 +3,14 @@ from PyQt6.QtCore import Qt, QTimer
 from ffmpeg_core import FFmpegProgressWatcher, get_audio_lines
 from style import *
 from ui.settings_panel import SettingsPanel
+from ui.settings_manager import SettingsManager
 import os, datetime
 
 class LeftPanel(QFrame):
     def __init__(self, console_panel):
         super().__init__()
         self.console = console_panel          # ссылка на ConsolePanel
+        self.settings = SettingsManager()
         self.ffmpeg = None                    # активный FFmpegProgressWatcher
         self.progress_timer = QTimer()
         self.progress_timer.timeout.connect(self._poll_progress)
@@ -142,7 +144,7 @@ class LeftPanel(QFrame):
         left_main_vbox.addStretch(1)
 
         # --- Экран настроек
-        self.left_settings_widget = SettingsPanel(self.show_main)
+        self.left_settings_widget = SettingsPanel(self.show_main, self.settings)
         self.left_stack.addWidget(self.left_main_widget)
         self.left_stack.addWidget(self.left_settings_widget)
         self.left_stack.setCurrentWidget(self.left_main_widget)
@@ -150,6 +152,8 @@ class LeftPanel(QFrame):
     def show_settings(self):
         self.left_stack.setCurrentWidget(self.left_settings_widget)
     def show_main(self):
+        # save settings when leaving the settings view
+        self.left_settings_widget.save_settings()
         self.left_stack.setCurrentWidget(self.left_main_widget)
 
         # --- доступ к настройкам ---
