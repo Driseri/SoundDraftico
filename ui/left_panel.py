@@ -27,9 +27,11 @@ def open_in_folder(path: str):
 class RecordItem(QFrame):
     """UI widget representing a saved recording."""
 
-    def __init__(self, path: str, parent=None):
+    def __init__(self, path: str, settings, parent=None):
         super().__init__(parent)
         self.path = path
+        self._settings = settings
+        self.setFixedHeight(48)
         self.setStyleSheet(
             f"""
             QFrame {{
@@ -52,17 +54,42 @@ class RecordItem(QFrame):
         hbox.setContentsMargins(16, 8, 16, 8)
         hbox.setSpacing(12)
 
-        name_lbl = QLabel(os.path.basename(path))
-        hbox.addWidget(name_lbl, stretch=1)
+        self.name_lbl = QLabel(os.path.basename(path))
+        hbox.addWidget(self.name_lbl, stretch=1)
 
         show_btn = QPushButton("📂")
         show_btn.setFixedWidth(36)
         show_btn.clicked.connect(lambda: open_in_folder(path))
         hbox.addWidget(show_btn)
 
-        transcribe_btn = QPushButton("✎")
-        transcribe_btn.setFixedWidth(36)
-        hbox.addWidget(transcribe_btn)
+        rename_btn = QPushButton("✎")
+        rename_btn.setFixedWidth(36)
+        rename_btn.clicked.connect(self.rename_file)
+        hbox.addWidget(rename_btn)
+
+    def rename_file(self):
+        from PyQt6.QtWidgets import QInputDialog
+        folder = os.path.dirname(self.path)
+        current_name = os.path.basename(self.path)
+        new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=current_name)
+        if ok and new_name:
+            if not new_name.lower().endswith(os.path.splitext(current_name)[1]):
+                new_name += os.path.splitext(current_name)[1]
+            new_path = os.path.join(folder, new_name)
+            try:
+                os.rename(self.path, new_path)
+            except OSError:
+                return
+            old_path = self.path
+            self.path = new_path
+            self.name_lbl.setText(new_name)
+            # обновляем список записей в настройках
+            records = self._settings.records()
+            for i, p in enumerate(records):
+                if p == old_path:
+                    records[i] = new_path
+                    break
+            self._settings.set_records(records)
 
 from style import *
 from ui.settings_panel import SettingsPanel
@@ -224,6 +251,8 @@ class LeftPanel(QFrame):
 
         self.records_scroll = QScrollArea()
         self.records_scroll.setWidgetResizable(True)
+        self.records_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.records_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.records_scroll.setStyleSheet("background: transparent; border: none;")
         self.records_widget = QWidget()
         self.records_layout = QVBoxLayout(self.records_widget)
@@ -334,6 +363,6 @@ class LeftPanel(QFrame):
                 self._add_record_item(path)
 
     def _add_record_item(self, path: str):
-        item = RecordItem(path)
+        item = RecordItem(path, self.settings)
         self.records_layout.addWidget(item)
 

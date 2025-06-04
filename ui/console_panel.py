@@ -1,4 +1,11 @@
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit
+from PyQt6.QtWidgets import (
+    QFrame,
+    QVBoxLayout,
+    QLabel,
+    QTextEdit,
+    QScrollArea,
+)
+from PyQt6.QtCore import Qt
 from style import *
 
 class ConsolePanel(QFrame):
@@ -30,29 +37,31 @@ class ConsolePanel(QFrame):
         """)
         vbox.addWidget(console_title)
 
+        # --- Область с логами ---
         self.console_box = QTextEdit()
         self.console_box.setReadOnly(True)
-        self.console_box.setStyleSheet(f"""
-            background: transparent;  
-            color: {CONSOLE_TEXT};
-            border: none;
-            border-radius: 0px;        
-            font-size:14px;
-            margin-left:18px;
-            margin-right:18px;
-        """)
-        vbox.addWidget(self.console_box)
-
-        self.console_box.setReadOnly(True)
-        self.console_box.setStyleSheet(f"""
+        self.console_box.setStyleSheet(
+            f"""
             background: {CONSOLE_BG};
             color: {CONSOLE_TEXT};
             border-radius: 12px;
+            border: none;
             font-size:14px;
-            margin-left:18px;
-            margin-right:18px;
-        """)
-        vbox.addWidget(self.console_box)
+            margin-left:0px;
+            margin-right:0px;
+            padding-left:18px;
+            padding-right:18px;
+            """
+        )
+
+        # Оборачиваем QTextEdit в скролл, чтобы всегда был вертикальный скроллбар
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("background: transparent; border:none;")
+        scroll.setWidget(self.console_box)
+        vbox.addWidget(scroll)
 
         # >>> Вот пример вывода лога:
         self.insert_log([
