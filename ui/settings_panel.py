@@ -1,12 +1,24 @@
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QFileDialog, QHBoxLayout, QFrame
+from PyQt6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QComboBox,
+    QFileDialog,
+    QHBoxLayout,
+    QFrame,
+)
 from ffmpeg_core import get_audio_lines
 from PyQt6.QtCore import Qt
 from style import *
+from ui.settings_manager import SettingsManager
 import os
 
 class SettingsPanel(QWidget):
-    def __init__(self, back_callback):
+    def __init__(self, back_callback, settings: SettingsManager):
         super().__init__()
+        self._settings = settings
         self.setStyleSheet("background: transparent;")
         vbox = QVBoxLayout(self)
         vbox.setContentsMargins(24, 18, 24, 24)
@@ -42,13 +54,21 @@ class SettingsPanel(QWidget):
         else:
             self.device_combo.addItem("<не найдено>")
 
+        # Set previously selected device if available
+        stored_device = self._settings.device("")
+        if stored_device:
+            idx = self.device_combo.findText(stored_device)
+            if idx >= 0:
+                self.device_combo.setCurrentIndex(idx)
+
         self.device_frame = InputFrame("Устройство записи:", self.device_combo)
         vbox.addWidget(self.device_frame)
 
         # --- Прямоугольная панель для выбора папки ---
+        initial_folder = self._settings.folder(os.path.expanduser("~/Documents"))
         self.folder_frame = FolderSelectFrame(
             "Папка для сохранения:",
-            initial_value=os.path.expanduser("~/Documents"),
+            initial_value=initial_folder,
         )
         self.folder_frame.set_on_click(self.choose_save_folder)
         vbox.addWidget(self.folder_frame)
@@ -71,6 +91,11 @@ class SettingsPanel(QWidget):
         folder = QFileDialog.getExistingDirectory(self, "Выберите папку для аудиозаписей", self.folder_frame.value())
         if folder:
             self.folder_frame.set_value(folder)
+
+    def save_settings(self):
+        """Persist current selections using SettingsManager."""
+        self._settings.set_device(self.selected_device())
+        self._settings.set_folder(self.save_folder())
 
 
     def save_folder(self) -> str:
