@@ -1,4 +1,12 @@
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QStackedLayout, QWidget, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFrame
+from PyQt6.QtWidgets import (
+    QFrame,
+    QVBoxLayout,
+    QStackedLayout,
+    QWidget,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+)
 from PyQt6.QtCore import Qt, QTimer
 from ffmpeg_core import FFmpegProgressWatcher, get_audio_lines
 from style import *
@@ -113,6 +121,29 @@ class LeftPanel(QFrame):
         ctrl_row.addWidget(self.btn_stop)
         left_main_vbox.addLayout(ctrl_row)
 
+        # ---- info frame for current recording ----
+        self.record_frame = QFrame()
+        self.record_frame.setStyleSheet(
+            """
+            QFrame {
+                background: #222A36;
+                border-radius: 12px;
+            }
+            QLabel {
+                color: #AAB8CC;
+                font-size: 15px;
+            }
+            """
+        )
+        info_vbox = QVBoxLayout(self.record_frame)
+        info_vbox.setContentsMargins(16, 8, 16, 8)
+        self.file_lbl = QLabel()
+        self.time_lbl = QLabel("00:00:00")
+        info_vbox.addWidget(self.file_lbl)
+        info_vbox.addWidget(self.time_lbl)
+        self.record_frame.setVisible(False)
+        left_main_vbox.addWidget(self.record_frame)
+
         self.btn_stop.setEnabled(False)
 
         self.btn_play.clicked.connect(self.start_record)
@@ -174,6 +205,7 @@ class LeftPanel(QFrame):
         os.makedirs(folder, exist_ok=True)
         stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         out_file = os.path.join(folder, f"{stamp}.mp3")
+        self.current_file = out_file
 
         # watcher
         self.ffmpeg = FFmpegProgressWatcher(
@@ -184,6 +216,9 @@ class LeftPanel(QFrame):
         self.ffmpeg.start()
         self.console.insert_log([(stamp, f"INFO Recording → {out_file}", "#4DC3F6")])
         self.progress_timer.start(1000)   # раз в сек
+        self.file_lbl.setText(os.path.basename(out_file))
+        self.time_lbl.setText("00:00:00")
+        self.record_frame.setVisible(True)
 
     def stop_record(self):
         if not self.ffmpeg:
@@ -197,13 +232,16 @@ class LeftPanel(QFrame):
         if result["success"]:
             msg = f"Saved: {result['output_file']} · {result['duration']}"
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), msg, "#4DC3F6")])
+            self.time_lbl.setText(result["duration"])
         else:
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), "ERROR Record failed", "#FF7043")])
         self.ffmpeg = None
+        self.record_frame.setVisible(False)
 
     def _poll_progress(self):
         if self.ffmpeg:
             out_time, size, speed = self.ffmpeg.get_last_progress()
             txt = f"{out_time}  {int(size)//1024} KB  {speed}"
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), txt, "#AAB8CC")])
+            self.time_lbl.setText(out_time)
 
