@@ -27,6 +27,7 @@ from tqdm import tqdm
 # old and the new versions we try to import ``TranscriptionProgress`` and fall
 # back to a tiny dataclass with the same attributes if it is missing.
 from faster_whisper import WhisperModel
+from functools import lru_cache
 try:  # pragma: no cover - simply for optional feature
     from faster_whisper import TranscriptionProgress  # type: ignore
 except ImportError:  # pragma: no cover - executed when running with old lib
@@ -41,7 +42,22 @@ except ImportError:  # pragma: no cover - executed when running with old lib
         segments_done: int
         step: int = 1
 
-__all__ = ["transcribe_audio"]
+__all__ = ["transcribe_audio", "load_model"]
+
+
+# ---------------------------------------------------------------------------
+# Model loading helper
+# ---------------------------------------------------------------------------
+
+@lru_cache(maxsize=None)
+def load_model(model_name: str = "large-v3", device: str = "cuda") -> WhisperModel:
+    """Load and cache a :class:`WhisperModel` instance."""
+    print(f"Загружаем модель {model_name} на {device}…")
+    return WhisperModel(
+        model_name,
+        device=device,
+        compute_type="int8_float16" if device == "cuda" else "int8",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +69,7 @@ def transcribe_audio(
     *,
     model_name: str = "large-v3",
     device: str = "cuda",
+    model: Optional[WhisperModel] = None,
     out_path: Optional[Union[str, Path]] = None,
     beam_size: int = 5,
     language: str = "ru",
@@ -70,6 +87,9 @@ def transcribe_audio(
     device : {"cuda", "cpu"}, default "cuda"
         Device for inference. If ``cuda`` is selected but not available, an
         exception will be raised by Faster‑Whisper.
+    model : WhisperModel | None, default ``None``
+        Preloaded model instance. If ``None`` a cached model will be loaded
+        using :func:`load_model`.
     out_path : str | Path | None, default ``None``
         Where to save text output. If *None*, ``<input_audio>.txt`` is used.
     beam_size : int, default 5
@@ -100,12 +120,8 @@ def transcribe_audio(
     # ---------------------------------------------------------------------
     # Загрузка модели
     # ---------------------------------------------------------------------
-    print(f"Загружаем модель {model_name} на {device}…")
-    model = WhisperModel(
-        model_name,
-        device=device,
-        compute_type="int8_float16" if device == "cuda" else "int8",
-    )
+    if model is None:
+        model = load_model(model_name, device)
 
     # ---------------------------------------------------------------------
     # Транскрибация с отображением прогресса
