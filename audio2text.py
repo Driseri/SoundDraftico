@@ -100,13 +100,19 @@ def transcribe_audio(
 
     log.info("Transcribing %s …", audio_path.name)
 
+    last_percent = -1
+
     def _internal_progress_cb(p: TranscriptionProgress):
+        nonlocal last_percent
         if progress_handler:
             progress_handler(p)
-        # Fallback basic log every 10 %
-        every = 0.1  # 10 %
-        if p.total and (p.elapsed / p.total) // every != ((p.elapsed - p.step) / p.total) // every:
-            log.info("Progress: %.0f%% (%d segments)", (p.elapsed / p.total) * 100, p.segments_done)
+
+        # Log progress each new percent if no external handler logs it
+        if p.total:
+            percent = int(p.elapsed / p.total * 100)
+            if percent != last_percent:
+                log.info("Progress: %d%% (%d segments)", percent, p.segments_done)
+                last_percent = percent
 
     segments, _info = model.transcribe(
         str(audio_path),
