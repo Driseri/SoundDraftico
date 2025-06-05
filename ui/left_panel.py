@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QLabel,
     QScrollArea,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt, QTimer
 import subprocess, sys
@@ -14,7 +15,7 @@ from ffmpeg_core import FFmpegProgressWatcher, get_audio_lines
 import os, datetime
 
 def open_in_folder(path: str):
-    """Open the folder containing the given file."""
+    """Открыть папку, содержащую указанный файл."""
     folder = os.path.abspath(os.path.dirname(path))
     if sys.platform.startswith("win"):
         os.startfile(folder)
@@ -25,13 +26,14 @@ def open_in_folder(path: str):
 
 
 class RecordItem(QFrame):
-    """UI widget representing a saved recording."""
+    """Элемент списка сохранённых записей."""
 
     def __init__(self, path: str, settings, parent=None):
         super().__init__(parent)
         self.path = path
         self._settings = settings
         self.setFixedHeight(48)
+        # Стилизация элемента
         self.setStyleSheet(
             f"""
             QFrame {{
@@ -50,6 +52,7 @@ class RecordItem(QFrame):
             QPushButton:hover {{ background: #48516B; }}
             """
         )
+        # Основная горизонтальная раскладка
         hbox = QHBoxLayout(self)
         hbox.setContentsMargins(16, 8, 16, 8)
         hbox.setSpacing(12)
@@ -57,18 +60,27 @@ class RecordItem(QFrame):
         self.name_lbl = QLabel(os.path.basename(path))
         hbox.addWidget(self.name_lbl, stretch=1)
 
+        # Кнопка открытия расположения файла
         show_btn = QPushButton("📂")
         show_btn.setFixedWidth(36)
         show_btn.clicked.connect(lambda: open_in_folder(path))
         hbox.addWidget(show_btn)
 
+        # Кнопка переименования
         rename_btn = QPushButton("✎")
         rename_btn.setFixedWidth(36)
         rename_btn.clicked.connect(self.rename_file)
         hbox.addWidget(rename_btn)
 
+        # Кнопка удаления файла
+        delete_btn = QPushButton("🗑")
+        delete_btn.setFixedWidth(36)
+        delete_btn.clicked.connect(self.delete_file)
+        hbox.addWidget(delete_btn)
+
     def rename_file(self):
         from PyQt6.QtWidgets import QInputDialog
+        # Диалоговое окно переименования файла
         folder = os.path.dirname(self.path)
         current_name = os.path.basename(self.path)
         new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=current_name)
@@ -90,6 +102,25 @@ class RecordItem(QFrame):
                     records[i] = new_path
                     break
             self._settings.set_records(records)
+
+    def delete_file(self):
+        """Удалить запись и обновить список."""
+        # Подтверждаем удаление файла
+        reply = QMessageBox.question(
+            self,
+            "Удалить запись",
+            "Вы уверены, что хотите удалить файл?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                os.remove(self.path)
+            except OSError:
+                pass
+            records = [p for p in self._settings.records() if p != self.path]
+            self._settings.set_records(records)
+            self.setParent(None)
+            self.deleteLater()
 
 from style import *
 from ui.settings_panel import SettingsPanel
@@ -358,11 +389,13 @@ class LeftPanel(QFrame):
             return f"{bytes_size} B"
 
     def _load_records(self):
+        """Загрузить сохранённые записи из настроек."""
         for path in self.settings.records():
             if os.path.exists(path):
                 self._add_record_item(path)
 
     def _add_record_item(self, path: str):
+        """Добавить запись в список на панели."""
         item = RecordItem(path, self.settings)
         self.records_layout.addWidget(item)
 

@@ -16,13 +16,16 @@ from ui.settings_manager import SettingsManager
 import os
 
 class SettingsPanel(QWidget):
+    """Виджет с настройками приложения."""
     def __init__(self, back_callback, settings: SettingsManager):
         super().__init__()
         self._settings = settings
         self.setStyleSheet("background: transparent;")
+        # Основная вертикальная раскладка
         vbox = QVBoxLayout(self)
         vbox.setContentsMargins(24, 18, 24, 24)
         vbox.setSpacing(12)
+        # Кнопка возврата к основному экрану
         back_btn = QPushButton("← Назад")
         back_btn.setFixedWidth(92)
         back_btn.setStyleSheet(f"""
@@ -36,6 +39,7 @@ class SettingsPanel(QWidget):
         back_btn.clicked.connect(back_callback)
         vbox.addWidget(back_btn, alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
+        # Заголовок раздела
         settings_lbl = QLabel("Настройки")
         settings_lbl.setStyleSheet(f"color: {LABEL_TEXT}; font-size: 22px; font-weight: bold; margin-left:22px;")
         vbox.addWidget(settings_lbl, alignment=Qt.AlignmentFlag.AlignLeft)
@@ -54,7 +58,7 @@ class SettingsPanel(QWidget):
         else:
             self.device_combo.addItem("<не найдено>")
 
-        # Set previously selected device if available
+        # Используем ранее выбранное устройство, если оно сохранено
         stored_device = self._settings.device("")
         if stored_device:
             idx = self.device_combo.findText(stored_device)
@@ -88,12 +92,15 @@ class SettingsPanel(QWidget):
         return self.device_combo.currentText()
     
     def choose_save_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Выберите папку для аудиозаписей", self.folder_frame.value())
+        # Выбор каталога для сохранения аудиофайлов
+        folder = QFileDialog.getExistingDirectory(
+            self, "Выберите папку для аудиозаписей", self.folder_frame.value()
+        )
         if folder:
             self.folder_frame.set_value(folder)
 
     def save_settings(self):
-        """Persist current selections using SettingsManager."""
+        """Сохранить текущие настройки через SettingsManager."""
         self._settings.set_device(self.selected_device())
         self._settings.set_folder(self.save_folder())
 
@@ -103,6 +110,7 @@ class SettingsPanel(QWidget):
     
 
 class FolderSelectFrame(QFrame):
+    """Поле выбора папки с кнопкой обзора."""
     def __init__(self, label_text, initial_value="", parent=None):
         super().__init__(parent)
         self.setStyleSheet(f"""
@@ -152,6 +160,7 @@ class FolderSelectFrame(QFrame):
         self.lineedit.setText(text)
 
 class InputFrame(QFrame):
+    """Контейнер с подписью и вложенным виджетом."""
     def __init__(self, label_text, widget, parent=None):
         super().__init__(parent)
         self.setStyleSheet("""
