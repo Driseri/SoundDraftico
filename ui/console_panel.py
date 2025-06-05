@@ -7,10 +7,12 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from style import *
+from log_buffer import LogBuffer
 
 class ConsolePanel(QFrame):
-    def __init__(self):
+    def __init__(self, max_logs: int = 1000):
         super().__init__()
+        self._buffer = LogBuffer(max_logs)
         self.setObjectName("right_frame")
         self.setFixedWidth(440)
         # Скругление и фон у всего фрейма
@@ -77,8 +79,12 @@ class ConsolePanel(QFrame):
 
     def insert_log(self, records):
         """Добавить записи в консоль."""
+        lines = []
         for time, text, color in records:
-            self.console_box.append(
+            line = (
                 f'<span style="color:#3FC7F3">{time}</span>'
                 f'<span style="color:{color}">{text}</span>'
             )
+            lines.append(line)
+        self._buffer.extend(lines)
+        self.console_box.setHtml(self._buffer.render_html("<br>"))
