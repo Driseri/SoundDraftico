@@ -148,10 +148,7 @@ class LeftPanel(QFrame):
         self.ffmpeg = None                    # активный FFmpegProgressWatcher
         self.progress_timer = QTimer()
         self.progress_timer.timeout.connect(self._poll_progress)
-        self.trans_timer = QTimer()
-        self.trans_timer.timeout.connect(self._poll_trans_progress)
         self.trans_thread = None
-        self.trans_percent = 0
         
         self.setFixedWidth(540)
         self.setObjectName("left_frame")
@@ -426,18 +423,12 @@ class LeftPanel(QFrame):
         if self.trans_thread:
             return
 
-        self.trans_percent = 0
         stamp = datetime.datetime.now().strftime("%H:%M:%S")
-        self.console.insert_log([(stamp, f"INFO Transcribing → {os.path.basename(path)}", "#4DC3F6")])
 
-        def progress_cb(p):
-            if p.total:
-                self.trans_percent = int(p.elapsed / p.total * 100)
 
         def worker():
             try:
-                out = transcribe_audio(path, progress_handler=progress_cb, logger=None)
-                self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), f"INFO Transcript → {out}", "#4DC3F6")])
+                transcribe_audio(path)
             except Exception as exc:  # pragma: no cover - GUI feedback only
                 self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), f"ERROR {exc}", "#FF7043")])
             finally:
@@ -445,13 +436,4 @@ class LeftPanel(QFrame):
 
         self.trans_thread = threading.Thread(target=worker, daemon=True)
         self.trans_thread.start()
-        self.trans_timer.start(1000)
-
-    def _poll_trans_progress(self):
-        if self.trans_thread:
-            self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), f"Progress {self.trans_percent}%", "#AAB8CC")])
-            if not self.trans_thread.is_alive():
-                self.trans_timer.stop()
-        else:
-            self.trans_timer.stop()
 

@@ -1,27 +1,25 @@
 """
  transcriber.py – переиспользуемый модуль для транскрибации аудио через Faster‑Whisper
- с подробным логированием и возможностью отслеживать прогресс.
+ с выводом прогресса в консоль.
 
  Использование из кода::
 
-     from transcriber import transcribe_audio
-     text_file = transcribe_audio("/path/audio.m4a", logger=my_logger)
+    from transcriber import transcribe_audio
+    text_file = transcribe_audio("/path/audio.m4a")
 
  Использование из CLI::
 
      python -m transcriber path/to/audio.wav --model large-v3 --device cuda
 
- Для логирования по умолчанию используется python logging; если logger не передан,
- создаётся собственный логгер transcriber с уровнем INFO.
+
  """
 
 from __future__ import annotations
 
 import argparse
-import logging
-import sys
 from pathlib import Path
 from typing import Callable, Optional, Union
+from tqdm import tqdm
 
 # ``TranscriptionProgress`` was introduced in later versions of
 # ``faster_whisper``.  Older releases expose only ``WhisperModel`` and do not
@@ -58,7 +56,7 @@ def transcribe_audio(
     out_path: Optional[Union[str, Path]] = None,
     beam_size: int = 5,
     language: str = "ru",
-    logger: Optional[logging.Logger] = None,
+    logger=None,
     progress_handler: Optional[Callable[[TranscriptionProgress], None]] = None,
 ) -> Path:
     """Transcribe *input_audio* and save result to *out_path*.
@@ -78,8 +76,6 @@ def transcribe_audio(
         Beam‑search size.
     language : str, default "ru"
         ISO‑639‑1 language code or "auto" for autodetect.
-    logger : logging.Logger | None
-        Existing logger to use. If *None*, a local one is created.
     progress_handler : Callable[[TranscriptionProgress], None] | None
         Optional callback to receive progress updates from Faster‑Whisper.
 
@@ -90,7 +86,7 @@ def transcribe_audio(
     """
 
     # ---------------------------------------------------------------------
-    # Prepare paths & logger
+    # Подготовка путей
     # ---------------------------------------------------------------------
     audio_path = Path(input_audio).expanduser().resolve()
     if not audio_path.exists():
@@ -100,12 +96,11 @@ def transcribe_audio(
         Path(out_path).expanduser().resolve() if out_path else audio_path.with_suffix(".txt")
     )
 
-    log = logger or _get_default_logger()
 
     # ---------------------------------------------------------------------
-    # Load model
+    # Загрузка модели
     # ---------------------------------------------------------------------
-    log.info("Loading model %s on %s …", model_name, device)
+    print(f"Загружаем модель {model_name} на {device}…")
     model = WhisperModel(
         model_name,
         device=device,
@@ -113,23 +108,23 @@ def transcribe_audio(
     )
 
     # ---------------------------------------------------------------------
-    # Transcription with progress reporting
+    # Транскрибация с отображением прогресса
     # ---------------------------------------------------------------------
 
-    log.info("Transcribing %s …", audio_path.name)
+    print(f"Начинаем транскрибацию {audio_path.name}…")
 
     last_percent = -1
+    progress_bar = tqdm(total=100, bar_format="{l_bar}{bar}| {n_fmt}%")
 
     def _internal_progress_cb(p: TranscriptionProgress):
         nonlocal last_percent
         if progress_handler:
             progress_handler(p)
-
-        # Log progress each new percent if no external handler logs it
+        # Обновляем прогресс в консоли
         if p.total:
             percent = int(p.elapsed / p.total * 100)
             if percent != last_percent:
-                log.info("Progress: %d%% (%d segments)", percent, p.segments_done)
+                progress_bar.update(percent - last_percent)
                 last_percent = percent
 
     transcribe_kwargs = dict(
@@ -148,6 +143,10 @@ def transcribe_audio(
 
     segments, _info = model.transcribe(str(audio_path), **transcribe_kwargs)
 
+    if last_percent < 100:
+        progress_bar.update(100 - last_percent)
+    progress_bar.close()
+
     # ---------------------------------------------------------------------
     # Save result
     # ---------------------------------------------------------------------
@@ -159,7 +158,7 @@ def transcribe_audio(
             line = f"[{hh(seg.start)} --> {hh(seg.end)}] {seg.text.strip()}\n"
             fp.write(line)
 
-    log.info("Done! Transcript saved to %s", output_path)
+    print(f"Транскрибация завершена. Файл сохранён: {output_path}")
     return output_path
 
 
@@ -176,26 +175,12 @@ def _parse_cli_args() -> argparse.Namespace:  # pragma: no cover
     p.add_argument("--out", help="Where to save text (default: <input>.txt)")
     p.add_argument("--beam_size", type=int, default=5, help="Beam size")
     p.add_argument("--language", default="ru", help="ISO code or auto")
-    p.add_argument(
-        "--quiet", action="store_true", help="Silence INFO messages (show WARN and above)"
-    )
     return p.parse_args()
 
-
-def _get_default_logger(level: int = logging.INFO) -> logging.Logger:
-    log = logging.getLogger("transcriber")
-    if not log.handlers:
-        handler = logging.StreamHandler(sys.stderr)
-        handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)8s | %(message)s"))
-        log.addHandler(handler)
-    log.setLevel(level)
-    return log
 
 
 def main() -> None:  # pragma: no cover – CLI only
     args = _parse_cli_args()
-    level = logging.WARNING if args.quiet else logging.INFO
-    logger = _get_default_logger(level)
 
     transcribe_audio(
         args.input_audio,
@@ -204,7 +189,6 @@ def main() -> None:  # pragma: no cover – CLI only
         out_path=args.out,
         beam_size=args.beam_size,
         language=args.language,
-        logger=logger,
     )
 
 
