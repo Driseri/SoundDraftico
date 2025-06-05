@@ -23,7 +23,25 @@ import sys
 from pathlib import Path
 from typing import Callable, Optional, Union
 
-from faster_whisper import WhisperModel, TranscriptionProgress
+# ``TranscriptionProgress`` was introduced in later versions of
+# ``faster_whisper``.  Older releases expose only ``WhisperModel`` and do not
+# provide structured progress callbacks.  To keep compatibility with both the
+# old and the new versions we try to import ``TranscriptionProgress`` and fall
+# back to a tiny dataclass with the same attributes if it is missing.
+from faster_whisper import WhisperModel
+try:  # pragma: no cover - simply for optional feature
+    from faster_whisper import TranscriptionProgress  # type: ignore
+except ImportError:  # pragma: no cover - executed when running with old lib
+    from dataclasses import dataclass
+
+    @dataclass
+    class TranscriptionProgress:  # type: ignore
+        """Fallback progress information structure."""
+
+        elapsed: float
+        total: float
+        segments_done: int
+        step: int = 1
 
 __all__ = ["transcribe_audio"]
 
