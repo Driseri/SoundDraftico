@@ -77,6 +77,15 @@ class SettingsPanel(QWidget):
         self.folder_frame.set_on_click(self.choose_save_folder)
         vbox.addWidget(self.folder_frame)
 
+        # --- Папка для текстовых транскрипций ---
+        initial_txt_folder = self._settings.transcript_folder(initial_folder)
+        self.trans_folder_frame = FolderSelectFrame(
+            "Папка транскрипций:",
+            initial_value=initial_txt_folder,
+        )
+        self.trans_folder_frame.set_on_click(self.choose_transcript_folder)
+        vbox.addWidget(self.trans_folder_frame)
+
 
         f2_lbl = QLabel("Язык по умолчанию:")
         f2_lbl.setStyleSheet(f"color: {LABEL_TEXT}; font-size: 15px; margin-left:36px;")
@@ -99,14 +108,25 @@ class SettingsPanel(QWidget):
         if folder:
             self.folder_frame.set_value(folder)
 
+    def choose_transcript_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Папка для транскрипций", self.trans_folder_frame.value()
+        )
+        if folder:
+            self.trans_folder_frame.set_value(folder)
+
     def save_settings(self):
         """Сохранить текущие настройки через SettingsManager."""
         self._settings.set_device(self.selected_device())
         self._settings.set_folder(self.save_folder())
+        self._settings.set_transcript_folder(self.transcript_folder())
 
 
     def save_folder(self) -> str:
-        return self.folder_frame.value()  
+        return self.folder_frame.value()
+
+    def transcript_folder(self) -> str:
+        return self.trans_folder_frame.value()
     
 
 class FolderSelectFrame(QFrame):

@@ -26,6 +26,17 @@ def open_in_folder(path: str):
     else:
         subprocess.Popen(["xdg-open", folder])
 
+def open_file(path: str):
+    """Open *path* with the system default application."""
+    if not os.path.exists(path):
+        return
+    if sys.platform.startswith("win"):
+        os.startfile(path)
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
 
 class RecordItem(QFrame):
     """Элемент списка сохранённых записей."""
@@ -35,6 +46,7 @@ class RecordItem(QFrame):
         self.path = path
         self._settings = settings
         self._transcribe_cb = transcribe_cb
+        self._txt_path = self._calc_transcript_path(path)
         self.setFixedHeight(48)
         # Стилизация элемента
         self.setStyleSheet(
@@ -87,6 +99,31 @@ class RecordItem(QFrame):
         trans_btn.clicked.connect(self.transcribe_file)
         hbox.addWidget(trans_btn)
 
+        # Кнопка открытия транскрипта (показывается после генерации)
+        self.open_txt_btn = QPushButton("📄")
+        self.open_txt_btn.setFixedWidth(36)
+        self.open_txt_btn.clicked.connect(self.open_transcript)
+        self.open_txt_btn.setVisible(os.path.exists(self._txt_path))
+        hbox.addWidget(self.open_txt_btn)
+
+    # -- helpers ----------------------------------------------------------
+    def _calc_transcript_path(self, audio_path: str) -> str:
+        folder = self._settings.transcript_folder()
+        if not folder:
+            folder = os.path.dirname(audio_path)
+        base = os.path.splitext(os.path.basename(audio_path))[0] + ".txt"
+        return os.path.join(folder, base)
+
+    def transcript_path(self) -> str:
+        return self._txt_path
+
+    def set_transcript_path(self, path: str) -> None:
+        self._txt_path = path
+        self.open_txt_btn.setVisible(os.path.exists(path))
+
+    def open_transcript(self):
+        open_file(self._txt_path)
+
     def rename_file(self):
         from PyQt6.QtWidgets import QInputDialog
         # Диалоговое окно переименования файла
@@ -103,6 +140,15 @@ class RecordItem(QFrame):
                 return
             old_path = self.path
             self.path = new_path
+            # Переименовываем также текстовый файл транскрибации, если он существует
+            old_txt = self._calc_transcript_path(old_path)
+            new_txt = self._calc_transcript_path(new_path)
+            if os.path.exists(old_txt):
+                try:
+                    os.rename(old_txt, new_txt)
+                except OSError:
+                    pass
+            self.set_transcript_path(new_txt)
             self.name_lbl.setText(new_name)
             # обновляем список записей в настройках
             records = self._settings.records()
@@ -126,6 +172,12 @@ class RecordItem(QFrame):
                 os.remove(self.path)
             except OSError:
                 pass
+            txt = self._calc_transcript_path(self.path)
+            if os.path.exists(txt):
+                try:
+                    os.remove(txt)
+                except OSError:
+                    pass
             records = [p for p in self._settings.records() if p != self.path]
             self._settings.set_records(records)
             self.setParent(None)
@@ -134,7 +186,7 @@ class RecordItem(QFrame):
     def transcribe_file(self):
         """Отправить файл на транскрибацию через переданный колбэк."""
         if self._transcribe_cb:
-            self._transcribe_cb(self.path)
+            self._transcribe_cb(self.path, self)
 
 from style import *
 from ui.settings_panel import SettingsPanel
@@ -329,6 +381,9 @@ class LeftPanel(QFrame):
     def _save_folder(self) -> str:
         return self.left_settings_widget.folder_frame.value()
 
+    def _transcript_folder(self) -> str:
+        return self.left_settings_widget.trans_folder_frame.value()
+
     def start_record(self):
         if self.ffmpeg:     # уже пишется — ничего не делаем!
             return
@@ -418,17 +473,21 @@ class LeftPanel(QFrame):
     #  Transcription handling
     # ------------------------------------------------------------------
 
-    def _start_transcription(self, path: str):
+    def _start_transcription(self, path: str, item: RecordItem):
         """Start transcription of *path* in a background thread."""
         if self.trans_thread:
             return
 
         stamp = datetime.datetime.now().strftime("%H:%M:%S")
 
+        out_folder = self._transcript_folder()
+        os.makedirs(out_folder, exist_ok=True)
+        out_path = os.path.join(out_folder, os.path.splitext(os.path.basename(path))[0] + ".txt")
 
         def worker():
             try:
-                transcribe_audio(path)
+                transcribe_audio(path, out_path=out_path)
+                item.set_transcript_path(out_path)
             except Exception as exc:  # pragma: no cover - GUI feedback only
                 self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), f"ERROR {exc}", "#FF7043")])
             finally:
