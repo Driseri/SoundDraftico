@@ -379,8 +379,6 @@ class LeftPanel(QFrame):
                 records.append(result["output_file"])
                 self.settings.set_records(records)
             self._add_record_item(result["output_file"])
-            # start transcription in background
-            self._start_transcription(result["output_file"])
         else:
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), "ERROR Record failed", "#FF7043")])
         self.ffmpeg = None

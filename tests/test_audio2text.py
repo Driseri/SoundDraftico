@@ -25,6 +25,17 @@ class DummyWhisperModel:
         segment = types.SimpleNamespace(start=0.0, end=1.0, text="hello")
         return [segment], {}
 
+class DummyWhisperModelNoCb:
+    """Модель без параметра progress_callback в методе transcribe."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    # отсутствие параметра progress_callback имитирует старую версию библиотеки
+    def transcribe(self, path, language=None, beam_size=5, vad_filter=True):
+        segment = types.SimpleNamespace(start=0.0, end=1.0, text="hello")
+        return [segment], {}
+
 def test_transcribe_progress(monkeypatch, tmp_path):
     # Prepare stub for faster_whisper before importing module
     dummy_module = types.SimpleNamespace(WhisperModel=DummyWhisperModel, TranscriptionProgress=DummyProgress)
@@ -47,3 +58,21 @@ def test_transcribe_progress(monkeypatch, tmp_path):
 
     assert Path(out).exists()
     assert progress[-1] == 100
+
+
+def test_transcribe_wo_progress_arg(monkeypatch, tmp_path):
+    """Проверяем работу с моделью, где нет параметра progress_callback."""
+
+    dummy_module = types.SimpleNamespace(WhisperModel=DummyWhisperModelNoCb, TranscriptionProgress=DummyProgress)
+    monkeypatch.setitem(sys.modules, "faster_whisper", dummy_module)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    import importlib
+    audio2text = importlib.import_module("audio2text")
+    monkeypatch.setattr(audio2text, "WhisperModel", DummyWhisperModelNoCb)
+
+    temp_file = tmp_path / "dummy2.wav"
+    temp_file.write_bytes(b"dummy")
+
+    out = audio2text.transcribe_audio(temp_file)
+
+    assert Path(out).exists()

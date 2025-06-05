@@ -132,13 +132,21 @@ def transcribe_audio(
                 log.info("Progress: %d%% (%d segments)", percent, p.segments_done)
                 last_percent = percent
 
-    segments, _info = model.transcribe(
-        str(audio_path),
+    transcribe_kwargs = dict(
         language=None if language == "auto" else language,
         beam_size=beam_size,
         vad_filter=True,
-        progress_callback=_internal_progress_cb,
     )
+
+    # Некоторые версии faster_whisper не поддерживают параметр
+    # ``progress_callback``.  Проверяем его наличие через introspection и
+    # передаём, только если параметр присутствует.
+    import inspect
+
+    if "progress_callback" in inspect.signature(model.transcribe).parameters:
+        transcribe_kwargs["progress_callback"] = _internal_progress_cb
+
+    segments, _info = model.transcribe(str(audio_path), **transcribe_kwargs)
 
     # ---------------------------------------------------------------------
     # Save result
