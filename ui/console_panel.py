@@ -13,7 +13,7 @@ class ConsolePanel(QFrame):
         super().__init__()
         self.setObjectName("right_frame")
         self.setFixedWidth(440)
-        # Скругление и фон у всего фрейма!
+        # Скругление и фон у всего фрейма
         self.setStyleSheet(f"""
             QFrame#right_frame {{
                 background: {CONSOLE_BG};
@@ -24,7 +24,7 @@ class ConsolePanel(QFrame):
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.setSpacing(0)
 
-        # Заголовок — на том же фоне, не делай ему свой border-radius!
+        # Заголовок консоли
         console_title = QLabel("Console")
         console_title.setStyleSheet(f"""
             background: transparent;   /* важно! */
@@ -63,7 +63,7 @@ class ConsolePanel(QFrame):
         scroll.setWidget(self.console_box)
         vbox.addWidget(scroll)
 
-        # >>> Вот пример вывода лога:
+        # Пример вывода лога при запуске
         self.insert_log([
             ("10:57:51", "INFO Initializing", "#4DC3F6"),
             ("10:57:52", "Started process proc...", "#4DC3F6"),
@@ -76,6 +76,9 @@ class ConsolePanel(QFrame):
         ])
 
     def insert_log(self, records):
+        """Добавить записи в консоль."""
         for time, text, color in records:
-            self.console_box.append(f'<span style="color:#3FC7F3">{time}</span> '
-                                   f'<span style="color:{color}">{text}</span>')
+            self.console_box.append(
+                f'<span style="color:#3FC7F3">{time}</span>'
+                f'<span style="color:{color}">{text}</span>'
+            )

@@ -6,7 +6,7 @@ import signal
 import time
 
 def get_audio_lines():
-    """Get Audio Sources"""
+    """Получить список доступных аудиоустройств."""
     result = subprocess.run(
         ['ffmpeg', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8" 
@@ -33,6 +33,7 @@ class FFmpegProgressWatcher:
         self._lock = threading.Lock()
 
     def start(self):
+        """Запустить процесс записи."""
         if self.is_recording:
             return
         cmd = [
@@ -47,12 +48,21 @@ class FFmpegProgressWatcher:
             "-nostats",          # Не дублировать старый прогресс в stderr
             self.output_file
         ]
-        self.process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, text=True, bufsize=1)
+        # Запускаем ffmpeg как отдельный процесс
+        self.process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
         self.is_recording = True
         self._progress_thread = threading.Thread(target=self._watch_progress, daemon=True)
         self._progress_thread.start()
 
     def _watch_progress(self):
+        """Читает вывод ffmpeg и сохраняет статистику."""
         while self.is_recording and self.process.poll() is None:
             line = self.process.stdout.readline()
             if not line:
@@ -64,6 +74,7 @@ class FFmpegProgressWatcher:
                     self.last_progress[key] = value
 
     def stop(self):
+        """Остановить запись и вернуть статистику."""
         if not self.is_recording:
             return {
                 "success": False,
@@ -82,6 +93,7 @@ class FFmpegProgressWatcher:
         self.is_recording = False
 
         try:
+            # Ждём завершения процесса
             self.process.wait(timeout=5)
         except subprocess.TimeoutExpired:
             print("FFmpeg не завершился за 5 секунд, принудительно завершаем...")
@@ -112,6 +124,7 @@ class FFmpegProgressWatcher:
             return [out_time, size, speed]
 
 if __name__ == "__main__":
+    # Пример использования класса в режиме отладки
     device = "Стерео микшер (Realtek(R) Audio)"  # Замени на свой девайс!
     watcher = FFmpegProgressWatcher(device, "test.mp3")
     watcher.start()
@@ -123,7 +136,9 @@ if __name__ == "__main__":
         result = watcher.stop()
         print("Итог:", result)
         if result['success']:
-            print(f"Файл {result['output_file']} успешно записан! Длительность: {result['duration']}, размер: {result['size_bytes']} байт.")
+            print(
+                f"Файл {result['output_file']} успешно записан! Длительность: {result['duration']}, размер: {result['size_bytes']} байт."
+            )
         else:
             print("Что-то пошло не так :(")
     except KeyboardInterrupt:
