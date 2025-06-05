@@ -52,7 +52,7 @@ class FFmpegProgressWatcher:
         self.process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             stdin=subprocess.PIPE,
             text=True,
             bufsize=1,
@@ -106,7 +106,6 @@ class FFmpegProgressWatcher:
             speed = self.last_progress.get("speed", "0") or "0"
 
         success = os.path.exists(self.output_file) and os.path.getsize(self.output_file) > 0
-        print(os.path.exists(self.output_file), os.path.getsize(self.output_file))
         return {
             "success": success,
             "output_file": self.output_file,
