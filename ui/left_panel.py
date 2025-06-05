@@ -1,3 +1,5 @@
+"""Левая панель приложения со списком записей и управлением записью."""
+
 from PyQt6.QtWidgets import (
     QFrame,
     QVBoxLayout,
@@ -7,186 +9,16 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QLabel,
     QScrollArea,
-    QMessageBox,
 )
 from PyQt6.QtCore import Qt, QTimer
-import subprocess, sys
-from ffmpeg_core import FFmpegProgressWatcher, get_audio_lines
-import os, datetime
+import datetime
+import os
 import threading
+from ffmpeg_core import FFmpegProgressWatcher, get_audio_lines
 from audio2text import transcribe_audio
 
-def open_in_folder(path: str):
-    """Открыть папку, содержащую указанный файл."""
-    folder = os.path.abspath(os.path.dirname(path))
-    if sys.platform.startswith("win"):
-        os.startfile(folder)
-    elif sys.platform == "darwin":
-        subprocess.Popen(["open", folder])
-    else:
-        subprocess.Popen(["xdg-open", folder])
-
-def open_file(path: str):
-    """Open *path* with the system default application."""
-    if not os.path.exists(path):
-        return
-    if sys.platform.startswith("win"):
-        os.startfile(path)
-    elif sys.platform == "darwin":
-        subprocess.Popen(["open", path])
-    else:
-        subprocess.Popen(["xdg-open", path])
-
-
-class RecordItem(QFrame):
-    """Элемент списка сохранённых записей."""
-
-    def __init__(self, path: str, settings, transcribe_cb=None, parent=None):
-        super().__init__(parent)
-        self.path = path
-        self._settings = settings
-        self._transcribe_cb = transcribe_cb
-        self._txt_path = self._calc_transcript_path(path)
-        self.setFixedHeight(48)
-        # Стилизация элемента
-        self.setStyleSheet(
-            f"""
-            QFrame {{
-                background: #222A36;
-                border-radius: 12px;
-            }}
-            QLabel {{ color: {LABEL_TEXT}; font-size: 15px; }}
-            QPushButton {{
-                background: #323B4A;
-                color: {LABEL_TEXT};
-                border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                padding-bottom: 2px;
-            }}
-            QPushButton:hover {{ background: #48516B; }}
-            """
-        )
-        # Основная горизонтальная раскладка
-        hbox = QHBoxLayout(self)
-        hbox.setContentsMargins(16, 8, 16, 8)
-        hbox.setSpacing(12)
-
-        self.name_lbl = QLabel(os.path.basename(path))
-        hbox.addWidget(self.name_lbl, stretch=1)
-
-        # Кнопка открытия расположения файла
-        show_btn = QPushButton("📂")
-        show_btn.setFixedWidth(36)
-        show_btn.clicked.connect(lambda: open_in_folder(path))
-        hbox.addWidget(show_btn)
-
-        # Кнопка переименования
-        rename_btn = QPushButton("✎")
-        rename_btn.setFixedWidth(36)
-        rename_btn.clicked.connect(self.rename_file)
-        hbox.addWidget(rename_btn)
-
-        # Кнопка удаления файла
-        delete_btn = QPushButton("🗑")
-        delete_btn.setFixedWidth(36)
-        delete_btn.clicked.connect(self.delete_file)
-        hbox.addWidget(delete_btn)
-
-        # Кнопка транскрибации
-        trans_btn = QPushButton("📝")
-        trans_btn.setFixedWidth(36)
-        trans_btn.clicked.connect(self.transcribe_file)
-        hbox.addWidget(trans_btn)
-
-        # Кнопка открытия транскрипта (показывается после генерации)
-        self.open_txt_btn = QPushButton("📄")
-        self.open_txt_btn.setFixedWidth(36)
-        self.open_txt_btn.clicked.connect(self.open_transcript)
-        self.open_txt_btn.setVisible(os.path.exists(self._txt_path))
-        hbox.addWidget(self.open_txt_btn)
-
-    # -- helpers ----------------------------------------------------------
-    def _calc_transcript_path(self, audio_path: str) -> str:
-        folder = self._settings.transcript_folder()
-        if not folder:
-            folder = os.path.dirname(audio_path)
-        base = os.path.splitext(os.path.basename(audio_path))[0] + ".txt"
-        return os.path.join(folder, base)
-
-    def transcript_path(self) -> str:
-        return self._txt_path
-
-    def set_transcript_path(self, path: str) -> None:
-        self._txt_path = path
-        self.open_txt_btn.setVisible(os.path.exists(path))
-
-    def open_transcript(self):
-        open_file(self._txt_path)
-
-    def rename_file(self):
-        from PyQt6.QtWidgets import QInputDialog
-        # Диалоговое окно переименования файла
-        folder = os.path.dirname(self.path)
-        current_name = os.path.basename(self.path)
-        new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=current_name)
-        if ok and new_name:
-            if not new_name.lower().endswith(os.path.splitext(current_name)[1]):
-                new_name += os.path.splitext(current_name)[1]
-            new_path = os.path.join(folder, new_name)
-            try:
-                os.rename(self.path, new_path)
-            except OSError:
-                return
-            old_path = self.path
-            self.path = new_path
-            # Переименовываем также текстовый файл транскрибации, если он существует
-            old_txt = self._calc_transcript_path(old_path)
-            new_txt = self._calc_transcript_path(new_path)
-            if os.path.exists(old_txt):
-                try:
-                    os.rename(old_txt, new_txt)
-                except OSError:
-                    pass
-            self.set_transcript_path(new_txt)
-            self.name_lbl.setText(new_name)
-            # обновляем список записей в настройках
-            records = self._settings.records()
-            for i, p in enumerate(records):
-                if p == old_path:
-                    records[i] = new_path
-                    break
-            self._settings.set_records(records)
-
-    def delete_file(self):
-        """Удалить запись и обновить список."""
-        # Подтверждаем удаление файла
-        reply = QMessageBox.question(
-            self,
-            "Удалить запись",
-            "Вы уверены, что хотите удалить файл?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            try:
-                os.remove(self.path)
-            except OSError:
-                pass
-            txt = self._calc_transcript_path(self.path)
-            if os.path.exists(txt):
-                try:
-                    os.remove(txt)
-                except OSError:
-                    pass
-            records = [p for p in self._settings.records() if p != self.path]
-            self._settings.set_records(records)
-            self.setParent(None)
-            self.deleteLater()
-
-    def transcribe_file(self):
-        """Отправить файл на транскрибацию через переданный колбэк."""
-        if self._transcribe_cb:
-            self._transcribe_cb(self.path, self)
+from .record_item import RecordItem
+from .utils import format_size
 
 from style import *
 from ui.settings_panel import SettingsPanel
@@ -449,14 +281,8 @@ class LeftPanel(QFrame):
             self.size_lbl.setText(self._format_size(bytes_size))
 
     def _format_size(self, bytes_size: int) -> str:
-        if bytes_size >= 1024 ** 3:
-            return f"{bytes_size / (1024 ** 3):.1f} GB"
-        elif bytes_size >= 1024 ** 2:
-            return f"{bytes_size / (1024 ** 2):.1f} MB"
-        elif bytes_size >= 1024:
-            return f"{bytes_size / 1024:.1f} KB"
-        else:
-            return f"{bytes_size} B"
+        """Отформатировать размер файла для отображения."""
+        return format_size(bytes_size)
 
     def _load_records(self):
         """Загрузить сохранённые записи из настроек."""
