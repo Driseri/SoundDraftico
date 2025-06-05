@@ -8,7 +8,9 @@ class SettingsManager:
     # ключи
     DEVICE_KEY   = "audio/device"
     FOLDER_KEY   = "audio/folder"
+    TXT_FOLDER_KEY = "transcript/folder"
     LANGUAGE_KEY = "ui/default_language"
+    RECORDS_KEY  = "records/list"
 
     def __init__(self):
         self._s = QSettings(SettingsManager.ORG, SettingsManager.APP)
@@ -20,8 +22,20 @@ class SettingsManager:
     def folder(self, default="") -> str:
         return self._s.value(SettingsManager.FOLDER_KEY, default, str)
 
+    def transcript_folder(self, default="") -> str:
+        return self._s.value(SettingsManager.TXT_FOLDER_KEY, default, str)
+
     def language(self, default="") -> str:
         return self._s.value(SettingsManager.LANGUAGE_KEY, default, str)
+
+    def records(self) -> list[str]:
+        """Return list of previously recorded file paths."""
+        data = self._s.value(SettingsManager.RECORDS_KEY, "[]", str)
+        try:
+            import json
+            return json.loads(data)
+        except Exception:
+            return []
 
     # --- сеттеры ---
     def set_device(self, text: str):
@@ -30,5 +44,13 @@ class SettingsManager:
     def set_folder(self, path: str):
         self._s.setValue(SettingsManager.FOLDER_KEY, path)
 
+    def set_transcript_folder(self, path: str):
+        self._s.setValue(SettingsManager.TXT_FOLDER_KEY, path)
+
     def set_language(self, code: str):
         self._s.setValue(SettingsManager.LANGUAGE_KEY, code)
+
+    def set_records(self, paths: list[str]):
+        """Persist list of recorded files."""
+        import json
+        self._s.setValue(SettingsManager.RECORDS_KEY, json.dumps(paths))

@@ -1,17 +1,206 @@
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QStackedLayout, QWidget, QHBoxLayout, QPushButton, QLabel, QLineEdit, QFrame
+from PyQt6.QtWidgets import (
+    QFrame,
+    QVBoxLayout,
+    QStackedLayout,
+    QWidget,
+    QHBoxLayout,
+    QPushButton,
+    QLabel,
+    QScrollArea,
+    QMessageBox,
+)
 from PyQt6.QtCore import Qt, QTimer
+import subprocess, sys
 from ffmpeg_core import FFmpegProgressWatcher, get_audio_lines
+import os, datetime
+import threading
+from audio2text import transcribe_audio
+
+def open_in_folder(path: str):
+    """Открыть папку, содержащую указанный файл."""
+    folder = os.path.abspath(os.path.dirname(path))
+    if sys.platform.startswith("win"):
+        os.startfile(folder)
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", folder])
+    else:
+        subprocess.Popen(["xdg-open", folder])
+
+def open_file(path: str):
+    """Open *path* with the system default application."""
+    if not os.path.exists(path):
+        return
+    if sys.platform.startswith("win"):
+        os.startfile(path)
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
+
+
+class RecordItem(QFrame):
+    """Элемент списка сохранённых записей."""
+
+    def __init__(self, path: str, settings, transcribe_cb=None, parent=None):
+        super().__init__(parent)
+        self.path = path
+        self._settings = settings
+        self._transcribe_cb = transcribe_cb
+        self._txt_path = self._calc_transcript_path(path)
+        self.setFixedHeight(48)
+        # Стилизация элемента
+        self.setStyleSheet(
+            f"""
+            QFrame {{
+                background: #222A36;
+                border-radius: 12px;
+            }}
+            QLabel {{ color: {LABEL_TEXT}; font-size: 15px; }}
+            QPushButton {{
+                background: #323B4A;
+                color: {LABEL_TEXT};
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                padding-bottom: 2px;
+            }}
+            QPushButton:hover {{ background: #48516B; }}
+            """
+        )
+        # Основная горизонтальная раскладка
+        hbox = QHBoxLayout(self)
+        hbox.setContentsMargins(16, 8, 16, 8)
+        hbox.setSpacing(12)
+
+        self.name_lbl = QLabel(os.path.basename(path))
+        hbox.addWidget(self.name_lbl, stretch=1)
+
+        # Кнопка открытия расположения файла
+        show_btn = QPushButton("📂")
+        show_btn.setFixedWidth(36)
+        show_btn.clicked.connect(lambda: open_in_folder(path))
+        hbox.addWidget(show_btn)
+
+        # Кнопка переименования
+        rename_btn = QPushButton("✎")
+        rename_btn.setFixedWidth(36)
+        rename_btn.clicked.connect(self.rename_file)
+        hbox.addWidget(rename_btn)
+
+        # Кнопка удаления файла
+        delete_btn = QPushButton("🗑")
+        delete_btn.setFixedWidth(36)
+        delete_btn.clicked.connect(self.delete_file)
+        hbox.addWidget(delete_btn)
+
+        # Кнопка транскрибации
+        trans_btn = QPushButton("📝")
+        trans_btn.setFixedWidth(36)
+        trans_btn.clicked.connect(self.transcribe_file)
+        hbox.addWidget(trans_btn)
+
+        # Кнопка открытия транскрипта (показывается после генерации)
+        self.open_txt_btn = QPushButton("📄")
+        self.open_txt_btn.setFixedWidth(36)
+        self.open_txt_btn.clicked.connect(self.open_transcript)
+        self.open_txt_btn.setVisible(os.path.exists(self._txt_path))
+        hbox.addWidget(self.open_txt_btn)
+
+    # -- helpers ----------------------------------------------------------
+    def _calc_transcript_path(self, audio_path: str) -> str:
+        folder = self._settings.transcript_folder()
+        if not folder:
+            folder = os.path.dirname(audio_path)
+        base = os.path.splitext(os.path.basename(audio_path))[0] + ".txt"
+        return os.path.join(folder, base)
+
+    def transcript_path(self) -> str:
+        return self._txt_path
+
+    def set_transcript_path(self, path: str) -> None:
+        self._txt_path = path
+        self.open_txt_btn.setVisible(os.path.exists(path))
+
+    def open_transcript(self):
+        open_file(self._txt_path)
+
+    def rename_file(self):
+        from PyQt6.QtWidgets import QInputDialog
+        # Диалоговое окно переименования файла
+        folder = os.path.dirname(self.path)
+        current_name = os.path.basename(self.path)
+        new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=current_name)
+        if ok and new_name:
+            if not new_name.lower().endswith(os.path.splitext(current_name)[1]):
+                new_name += os.path.splitext(current_name)[1]
+            new_path = os.path.join(folder, new_name)
+            try:
+                os.rename(self.path, new_path)
+            except OSError:
+                return
+            old_path = self.path
+            self.path = new_path
+            # Переименовываем также текстовый файл транскрибации, если он существует
+            old_txt = self._calc_transcript_path(old_path)
+            new_txt = self._calc_transcript_path(new_path)
+            if os.path.exists(old_txt):
+                try:
+                    os.rename(old_txt, new_txt)
+                except OSError:
+                    pass
+            self.set_transcript_path(new_txt)
+            self.name_lbl.setText(new_name)
+            # обновляем список записей в настройках
+            records = self._settings.records()
+            for i, p in enumerate(records):
+                if p == old_path:
+                    records[i] = new_path
+                    break
+            self._settings.set_records(records)
+
+    def delete_file(self):
+        """Удалить запись и обновить список."""
+        # Подтверждаем удаление файла
+        reply = QMessageBox.question(
+            self,
+            "Удалить запись",
+            "Вы уверены, что хотите удалить файл?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                os.remove(self.path)
+            except OSError:
+                pass
+            txt = self._calc_transcript_path(self.path)
+            if os.path.exists(txt):
+                try:
+                    os.remove(txt)
+                except OSError:
+                    pass
+            records = [p for p in self._settings.records() if p != self.path]
+            self._settings.set_records(records)
+            self.setParent(None)
+            self.deleteLater()
+
+    def transcribe_file(self):
+        """Отправить файл на транскрибацию через переданный колбэк."""
+        if self._transcribe_cb:
+            self._transcribe_cb(self.path, self)
+
 from style import *
 from ui.settings_panel import SettingsPanel
-import os, datetime
+from ui.settings_manager import SettingsManager
 
 class LeftPanel(QFrame):
     def __init__(self, console_panel):
         super().__init__()
         self.console = console_panel          # ссылка на ConsolePanel
+        self.settings = SettingsManager()
         self.ffmpeg = None                    # активный FFmpegProgressWatcher
         self.progress_timer = QTimer()
         self.progress_timer.timeout.connect(self._poll_progress)
+        self.trans_thread = None
         
         self.setFixedWidth(540)
         self.setObjectName("left_frame")
@@ -111,38 +300,69 @@ class LeftPanel(QFrame):
         ctrl_row.addWidget(self.btn_stop)
         left_main_vbox.addLayout(ctrl_row)
 
+        # ---- info frame for current recording ----
+        self.record_frame = QFrame()
+        self.record_frame.setStyleSheet(
+            """
+            QFrame {
+                background: #222A36;
+                border-radius: 12px;
+            }
+            QLabel {
+                font-size: 15px;
+            }
+            """
+        )
+
+        info_hbox = QHBoxLayout(self.record_frame)
+        info_hbox.setContentsMargins(16, 8, 16, 8)
+        info_hbox.setSpacing(12)
+
+        self.file_lbl = QLabel()
+        self.file_lbl.setStyleSheet(f"color: {COLOR_ACCENT};")
+
+        self.time_lbl = QLabel("00:00:00")
+        self.time_lbl.setStyleSheet(f"color: {LABEL_TEXT};")
+
+        self.size_lbl = QLabel("0 KB")
+        self.size_lbl.setStyleSheet(f"color: {SETTINGS_TEXT};")
+
+        info_hbox.addWidget(self.file_lbl)
+        info_hbox.addWidget(self.time_lbl)
+        info_hbox.addWidget(self.size_lbl)
+
+        self.record_frame.setVisible(False)
+        left_main_vbox.addWidget(self.record_frame)
+
         self.btn_stop.setEnabled(False)
 
         self.btn_play.clicked.connect(self.start_record)
         self.btn_stop.clicked.connect(self.stop_record)
 
 
-        # Статус и имитация текста
-        status_lbl = QLabel("Status")
-        status_lbl.setStyleSheet(f"color: {LABEL_TEXT}; font-size:16px; font-weight: bold; margin-left:18px;")
+        # --- Список записей ---
+        status_lbl = QLabel("Записи")
+        status_lbl.setStyleSheet(
+            f"color: {LABEL_TEXT}; font-size:16px; font-weight: bold; margin-left:18px;"
+        )
         left_main_vbox.addWidget(status_lbl)
 
-        for _ in range(2):
-            txt = QLabel("ТЕКСТ")
-            txt.setStyleSheet(f"color: {TRANSCRIPT_TEXT}; font-size: 22px; font-weight: bold; margin-left:28px;")
-            left_main_vbox.addWidget(txt)
-            line = QFrame()
-            line.setFixedHeight(7)
-            line.setFixedWidth(170)
-            line.setStyleSheet(f"background: {LINE}; border-radius: 3px; margin-left:32px;")
-            left_main_vbox.addWidget(line)
-        txt = QLabel("ТЕКСТ")
-        txt.setStyleSheet(f"color: {TRANSCRIPT_TEXT}; font-size: 22px; font-weight: bold; margin-left:28px;")
-        left_main_vbox.addWidget(txt)
-        line = QFrame()
-        line.setFixedHeight(7)
-        line.setFixedWidth(140)
-        line.setStyleSheet(f"background: {LINE}; border-radius: 3px; margin-left:32px;")
-        left_main_vbox.addWidget(line)
-        left_main_vbox.addStretch(1)
+        self.records_scroll = QScrollArea()
+        self.records_scroll.setWidgetResizable(True)
+        self.records_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.records_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.records_scroll.setStyleSheet("background: transparent; border: none;")
+        self.records_widget = QWidget()
+        self.records_layout = QVBoxLayout(self.records_widget)
+        self.records_layout.setContentsMargins(18, 4, 18, 4)
+        self.records_layout.setSpacing(8)
+        self.records_scroll.setWidget(self.records_widget)
+        left_main_vbox.addWidget(self.records_scroll, 1)
+
+        self._load_records()
 
         # --- Экран настроек
-        self.left_settings_widget = SettingsPanel(self.show_main)
+        self.left_settings_widget = SettingsPanel(self.show_main, self.settings)
         self.left_stack.addWidget(self.left_main_widget)
         self.left_stack.addWidget(self.left_settings_widget)
         self.left_stack.setCurrentWidget(self.left_main_widget)
@@ -150,6 +370,8 @@ class LeftPanel(QFrame):
     def show_settings(self):
         self.left_stack.setCurrentWidget(self.left_settings_widget)
     def show_main(self):
+        # save settings when leaving the settings view
+        self.left_settings_widget.save_settings()
         self.left_stack.setCurrentWidget(self.left_main_widget)
 
         # --- доступ к настройкам ---
@@ -158,6 +380,9 @@ class LeftPanel(QFrame):
 
     def _save_folder(self) -> str:
         return self.left_settings_widget.folder_frame.value()
+
+    def _transcript_folder(self) -> str:
+        return self.left_settings_widget.trans_folder_frame.value()
 
     def start_record(self):
         if self.ffmpeg:     # уже пишется — ничего не делаем!
@@ -170,6 +395,7 @@ class LeftPanel(QFrame):
         os.makedirs(folder, exist_ok=True)
         stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         out_file = os.path.join(folder, f"{stamp}.mp3")
+        self.current_file = out_file
 
         # watcher
         self.ffmpeg = FFmpegProgressWatcher(
@@ -180,6 +406,10 @@ class LeftPanel(QFrame):
         self.ffmpeg.start()
         self.console.insert_log([(stamp, f"INFO Recording → {out_file}", "#4DC3F6")])
         self.progress_timer.start(1000)   # раз в сек
+        self.file_lbl.setText(os.path.basename(out_file))
+        self.time_lbl.setText("00:00:00")
+        self.size_lbl.setText("0 KB")
+        self.record_frame.setVisible(True)
 
     def stop_record(self):
         if not self.ffmpeg:
@@ -193,13 +423,76 @@ class LeftPanel(QFrame):
         if result["success"]:
             msg = f"Saved: {result['output_file']} · {result['duration']}"
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), msg, "#4DC3F6")])
+            self.time_lbl.setText(result["duration"])
+            self.size_lbl.setText(self._format_size(result.get("size_bytes", 0)))
+            # persist record info
+            records = self.settings.records()
+            if result["output_file"] not in records:
+                records.append(result["output_file"])
+                self.settings.set_records(records)
+            self._add_record_item(result["output_file"])
         else:
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), "ERROR Record failed", "#FF7043")])
         self.ffmpeg = None
+        self.record_frame.setVisible(False)
 
     def _poll_progress(self):
         if self.ffmpeg:
             out_time, size, speed = self.ffmpeg.get_last_progress()
             txt = f"{out_time}  {int(size)//1024} KB  {speed}"
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), txt, "#AAB8CC")])
+            self.time_lbl.setText(out_time)
+            try:
+                bytes_size = int(size)
+            except ValueError:
+                bytes_size = 0
+            self.size_lbl.setText(self._format_size(bytes_size))
+
+    def _format_size(self, bytes_size: int) -> str:
+        if bytes_size >= 1024 ** 3:
+            return f"{bytes_size / (1024 ** 3):.1f} GB"
+        elif bytes_size >= 1024 ** 2:
+            return f"{bytes_size / (1024 ** 2):.1f} MB"
+        elif bytes_size >= 1024:
+            return f"{bytes_size / 1024:.1f} KB"
+        else:
+            return f"{bytes_size} B"
+
+    def _load_records(self):
+        """Загрузить сохранённые записи из настроек."""
+        for path in self.settings.records():
+            if os.path.exists(path):
+                self._add_record_item(path)
+
+    def _add_record_item(self, path: str):
+        """Добавить запись в список на панели."""
+        item = RecordItem(path, self.settings, self._start_transcription)
+        self.records_layout.addWidget(item)
+
+    # ------------------------------------------------------------------
+    #  Transcription handling
+    # ------------------------------------------------------------------
+
+    def _start_transcription(self, path: str, item: RecordItem):
+        """Start transcription of *path* in a background thread."""
+        if self.trans_thread:
+            return
+
+        stamp = datetime.datetime.now().strftime("%H:%M:%S")
+
+        out_folder = self._transcript_folder()
+        os.makedirs(out_folder, exist_ok=True)
+        out_path = os.path.join(out_folder, os.path.splitext(os.path.basename(path))[0] + ".txt")
+
+        def worker():
+            try:
+                transcribe_audio(path, out_path=out_path)
+                item.set_transcript_path(out_path)
+            except Exception as exc:  # pragma: no cover - GUI feedback only
+                self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), f"ERROR {exc}", "#FF7043")])
+            finally:
+                self.trans_thread = None
+
+        self.trans_thread = threading.Thread(target=worker, daemon=True)
+        self.trans_thread.start()
 

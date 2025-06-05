@@ -1,12 +1,21 @@
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit
+from PyQt6.QtWidgets import (
+    QFrame,
+    QVBoxLayout,
+    QLabel,
+    QTextEdit,
+    QScrollArea,
+)
+from PyQt6.QtCore import Qt
 from style import *
+from log_buffer import LogBuffer
 
 class ConsolePanel(QFrame):
-    def __init__(self):
+    def __init__(self, max_logs: int = 1000):
         super().__init__()
+        self._buffer = LogBuffer(max_logs)
         self.setObjectName("right_frame")
         self.setFixedWidth(440)
-        # Скругление и фон у всего фрейма!
+        # Скругление и фон у всего фрейма
         self.setStyleSheet(f"""
             QFrame#right_frame {{
                 background: {CONSOLE_BG};
@@ -17,7 +26,7 @@ class ConsolePanel(QFrame):
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.setSpacing(0)
 
-        # Заголовок — на том же фоне, не делай ему свой border-radius!
+        # Заголовок консоли
         console_title = QLabel("Console")
         console_title.setStyleSheet(f"""
             background: transparent;   /* важно! */
@@ -30,31 +39,33 @@ class ConsolePanel(QFrame):
         """)
         vbox.addWidget(console_title)
 
+        # --- Область с логами ---
         self.console_box = QTextEdit()
         self.console_box.setReadOnly(True)
-        self.console_box.setStyleSheet(f"""
-            background: transparent;  
-            color: {CONSOLE_TEXT};
-            border: none;
-            border-radius: 0px;        
-            font-size:14px;
-            margin-left:18px;
-            margin-right:18px;
-        """)
-        vbox.addWidget(self.console_box)
-
-        self.console_box.setReadOnly(True)
-        self.console_box.setStyleSheet(f"""
+        self.console_box.setStyleSheet(
+            f"""
             background: {CONSOLE_BG};
             color: {CONSOLE_TEXT};
             border-radius: 12px;
+            border: none;
             font-size:14px;
-            margin-left:18px;
-            margin-right:18px;
-        """)
-        vbox.addWidget(self.console_box)
+            margin-left:0px;
+            margin-right:0px;
+            padding-left:18px;
+            padding-right:18px;
+            """
+        )
 
-        # >>> Вот пример вывода лога:
+        # Оборачиваем QTextEdit в скролл, чтобы всегда был вертикальный скроллбар
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("background: transparent; border:none;")
+        scroll.setWidget(self.console_box)
+        vbox.addWidget(scroll)
+
+        # Пример вывода лога при запуске
         self.insert_log([
             ("10:57:51", "INFO Initializing", "#4DC3F6"),
             ("10:57:52", "Started process proc...", "#4DC3F6"),
@@ -67,6 +78,13 @@ class ConsolePanel(QFrame):
         ])
 
     def insert_log(self, records):
+        """Добавить записи в консоль."""
+        lines = []
         for time, text, color in records:
-            self.console_box.append(f'<span style="color:#3FC7F3">{time}</span> '
-                                   f'<span style="color:{color}">{text}</span>')
+            line = (
+                f'<span style="color:#3FC7F3">{time}</span>'
+                f'<span style="color:{color}">{text}</span>'
+            )
+            lines.append(line)
+        self._buffer.extend(lines)
+        self.console_box.setHtml(self._buffer.render_html("<br>"))

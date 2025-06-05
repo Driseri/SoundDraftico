@@ -1,0 +1,15 @@
+PyQt6
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch==2.5.0
+torchaudio==2.5.0
+tqdm
+
+# ядро
+faster-whisper==1.1.1
+ctranslate2==4.5.0
+
+# минимальный набор CUDA-библиотек
+nvidia-cudnn-cu12==9.5.0.50
+nvidia-cublas-cu12==12.4.5.8
+nvidia-cuda-runtime-cu12==12.4.127
+nvidia-cuda-nvrtc-cu12==12.4.127

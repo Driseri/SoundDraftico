@@ -10,6 +10,7 @@ import ctypes.wintypes
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        # --- Параметры главного окна ---
         self.setWindowTitle("Speech Transcriber")
         self.setFixedSize(1100, 540)
         self.setStyleSheet(f"background: {BG_MAIN};")
@@ -38,29 +39,34 @@ class MainWindow(QMainWindow):
         vertical_layout.addLayout(main_layout)
 
         self.console_panel = ConsolePanel()
-        
+
         # --- Левая и правая панели ---
         self.left_panel = LeftPanel(console_panel=self.console_panel)
         main_layout.addWidget(self.left_panel)
         main_layout.addWidget(self.console_panel)
         
 
+        # Устанавливаем центральный виджет
         self.setCentralWidget(central)
 
     def insert_log(self, records):
+        """Передать список записей в консольный виджет."""
         self.console_panel.insert_log(records)
 
     def mousePressEvent(self, event):
+        # Запоминаем позицию мыши при нажатии, чтобы можно было перемещать окно
         if event.button() == Qt.MouseButton.LeftButton:
             self._old_pos = event.globalPosition().toPoint()
 
     def mouseMoveEvent(self, event):
+        # Реализуем перетаскивание окна за любую область
         if hasattr(self, '_old_pos') and event.buttons() == Qt.MouseButton.LeftButton:
             delta = event.globalPosition().toPoint() - self._old_pos
             self.move(self.x() + delta.x(), self.y() + delta.y())
             self._old_pos = event.globalPosition().toPoint()
 
     def set_rounded_corners(self, hwnd):
+        """Задаём окну скругленные углы через WinAPI."""
         DWMWCP_ROUND = 2
         DWMWA_WINDOW_CORNER_PREFERENCE = 33
         ctypes.windll.dwmapi.DwmSetWindowAttribute(
