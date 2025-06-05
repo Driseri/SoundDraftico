@@ -8,6 +8,7 @@ class SettingsManager:
     # ключи
     DEVICE_KEY   = "audio/device"
     FOLDER_KEY   = "audio/folder"
+    TXT_FOLDER_KEY = "transcript/folder"
     LANGUAGE_KEY = "ui/default_language"
     RECORDS_KEY  = "records/list"
 
@@ -20,6 +21,9 @@ class SettingsManager:
 
     def folder(self, default="") -> str:
         return self._s.value(SettingsManager.FOLDER_KEY, default, str)
+
+    def transcript_folder(self, default="") -> str:
+        return self._s.value(SettingsManager.TXT_FOLDER_KEY, default, str)
 
     def language(self, default="") -> str:
         return self._s.value(SettingsManager.LANGUAGE_KEY, default, str)
@@ -39,6 +43,9 @@ class SettingsManager:
 
     def set_folder(self, path: str):
         self._s.setValue(SettingsManager.FOLDER_KEY, path)
+
+    def set_transcript_folder(self, path: str):
+        self._s.setValue(SettingsManager.TXT_FOLDER_KEY, path)
 
     def set_language(self, code: str):
         self._s.setValue(SettingsManager.LANGUAGE_KEY, code)
