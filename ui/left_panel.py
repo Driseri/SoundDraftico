@@ -13,6 +13,8 @@ from PyQt6.QtCore import Qt, QTimer
 import subprocess, sys
 from ffmpeg_core import FFmpegProgressWatcher, get_audio_lines
 import os, datetime
+import threading
+from audio2text import transcribe_audio
 
 def open_in_folder(path: str):
     """Открыть папку, содержащую указанный файл."""
@@ -28,10 +30,11 @@ def open_in_folder(path: str):
 class RecordItem(QFrame):
     """Элемент списка сохранённых записей."""
 
-    def __init__(self, path: str, settings, parent=None):
+    def __init__(self, path: str, settings, transcribe_cb=None, parent=None):
         super().__init__(parent)
         self.path = path
         self._settings = settings
+        self._transcribe_cb = transcribe_cb
         self.setFixedHeight(48)
         # Стилизация элемента
         self.setStyleSheet(
@@ -78,6 +81,12 @@ class RecordItem(QFrame):
         delete_btn.clicked.connect(self.delete_file)
         hbox.addWidget(delete_btn)
 
+        # Кнопка транскрибации
+        trans_btn = QPushButton("📝")
+        trans_btn.setFixedWidth(36)
+        trans_btn.clicked.connect(self.transcribe_file)
+        hbox.addWidget(trans_btn)
+
     def rename_file(self):
         from PyQt6.QtWidgets import QInputDialog
         # Диалоговое окно переименования файла
@@ -122,6 +131,11 @@ class RecordItem(QFrame):
             self.setParent(None)
             self.deleteLater()
 
+    def transcribe_file(self):
+        """Отправить файл на транскрибацию через переданный колбэк."""
+        if self._transcribe_cb:
+            self._transcribe_cb(self.path)
+
 from style import *
 from ui.settings_panel import SettingsPanel
 from ui.settings_manager import SettingsManager
@@ -134,6 +148,10 @@ class LeftPanel(QFrame):
         self.ffmpeg = None                    # активный FFmpegProgressWatcher
         self.progress_timer = QTimer()
         self.progress_timer.timeout.connect(self._poll_progress)
+        self.trans_timer = QTimer()
+        self.trans_timer.timeout.connect(self._poll_trans_progress)
+        self.trans_thread = None
+        self.trans_percent = 0
         
         self.setFixedWidth(540)
         self.setObjectName("left_frame")
@@ -361,6 +379,8 @@ class LeftPanel(QFrame):
                 records.append(result["output_file"])
                 self.settings.set_records(records)
             self._add_record_item(result["output_file"])
+            # start transcription in background
+            self._start_transcription(result["output_file"])
         else:
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), "ERROR Record failed", "#FF7043")])
         self.ffmpeg = None
@@ -396,6 +416,44 @@ class LeftPanel(QFrame):
 
     def _add_record_item(self, path: str):
         """Добавить запись в список на панели."""
-        item = RecordItem(path, self.settings)
+        item = RecordItem(path, self.settings, self._start_transcription)
         self.records_layout.addWidget(item)
+
+    # ------------------------------------------------------------------
+    #  Transcription handling
+    # ------------------------------------------------------------------
+
+    def _start_transcription(self, path: str):
+        """Start transcription of *path* in a background thread."""
+        if self.trans_thread:
+            return
+
+        self.trans_percent = 0
+        stamp = datetime.datetime.now().strftime("%H:%M:%S")
+        self.console.insert_log([(stamp, f"INFO Transcribing → {os.path.basename(path)}", "#4DC3F6")])
+
+        def progress_cb(p):
+            if p.total:
+                self.trans_percent = int(p.elapsed / p.total * 100)
+
+        def worker():
+            try:
+                out = transcribe_audio(path, progress_handler=progress_cb, logger=None)
+                self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), f"INFO Transcript → {out}", "#4DC3F6")])
+            except Exception as exc:  # pragma: no cover - GUI feedback only
+                self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), f"ERROR {exc}", "#FF7043")])
+            finally:
+                self.trans_thread = None
+
+        self.trans_thread = threading.Thread(target=worker, daemon=True)
+        self.trans_thread.start()
+        self.trans_timer.start(1000)
+
+    def _poll_trans_progress(self):
+        if self.trans_thread:
+            self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), f"Progress {self.trans_percent}%", "#AAB8CC")])
+            if not self.trans_thread.is_alive():
+                self.trans_timer.stop()
+        else:
+            self.trans_timer.stop()
 

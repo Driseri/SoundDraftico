@@ -23,7 +23,25 @@ import sys
 from pathlib import Path
 from typing import Callable, Optional, Union
 
-from faster_whisper import WhisperModel, TranscriptionProgress
+# ``TranscriptionProgress`` was introduced in later versions of
+# ``faster_whisper``.  Older releases expose only ``WhisperModel`` and do not
+# provide structured progress callbacks.  To keep compatibility with both the
+# old and the new versions we try to import ``TranscriptionProgress`` and fall
+# back to a tiny dataclass with the same attributes if it is missing.
+from faster_whisper import WhisperModel
+try:  # pragma: no cover - simply for optional feature
+    from faster_whisper import TranscriptionProgress  # type: ignore
+except ImportError:  # pragma: no cover - executed when running with old lib
+    from dataclasses import dataclass
+
+    @dataclass
+    class TranscriptionProgress:  # type: ignore
+        """Fallback progress information structure."""
+
+        elapsed: float
+        total: float
+        segments_done: int
+        step: int = 1
 
 __all__ = ["transcribe_audio"]
 
@@ -100,13 +118,19 @@ def transcribe_audio(
 
     log.info("Transcribing %s …", audio_path.name)
 
+    last_percent = -1
+
     def _internal_progress_cb(p: TranscriptionProgress):
+        nonlocal last_percent
         if progress_handler:
             progress_handler(p)
-        # Fallback basic log every 10 %
-        every = 0.1  # 10 %
-        if p.total and (p.elapsed / p.total) // every != ((p.elapsed - p.step) / p.total) // every:
-            log.info("Progress: %.0f%% (%d segments)", (p.elapsed / p.total) * 100, p.segments_done)
+
+        # Log progress each new percent if no external handler logs it
+        if p.total:
+            percent = int(p.elapsed / p.total * 100)
+            if percent != last_percent:
+                log.info("Progress: %d%% (%d segments)", percent, p.segments_done)
+                last_percent = percent
 
     segments, _info = model.transcribe(
         str(audio_path),
