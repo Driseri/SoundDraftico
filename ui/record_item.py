@@ -50,30 +50,35 @@ class RecordItem(QFrame):
 
         # кнопка открытия папки
         show_btn = QPushButton("📂")
+        show_btn.setAccessibleName("showInFolder")
         show_btn.setFixedWidth(36)
         show_btn.clicked.connect(lambda: open_in_folder(path))
         hbox.addWidget(show_btn)
 
         # кнопка переименования
         rename_btn = QPushButton("✎")
+        rename_btn.setAccessibleName("renameFile")
         rename_btn.setFixedWidth(36)
         rename_btn.clicked.connect(self.rename_file)
         hbox.addWidget(rename_btn)
 
         # кнопка удаления
         delete_btn = QPushButton("🗑")
+        delete_btn.setAccessibleName("deleteFile")
         delete_btn.setFixedWidth(36)
         delete_btn.clicked.connect(self.delete_file)
         hbox.addWidget(delete_btn)
 
         # кнопка запуска транскрибации
         trans_btn = QPushButton("📝")
+        trans_btn.setAccessibleName("transcribeFile")
         trans_btn.setFixedWidth(36)
         trans_btn.clicked.connect(self.transcribe_file)
         hbox.addWidget(trans_btn)
 
         # кнопка открытия транскрипта, появится после генерации
         self.open_txt_btn = QPushButton("📄")
+        self.open_txt_btn.setAccessibleName("openTranscript")
         self.open_txt_btn.setFixedWidth(36)
         self.open_txt_btn.clicked.connect(self.open_transcript)
         self.open_txt_btn.setVisible(os.path.exists(self._txt_path))

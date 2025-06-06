@@ -11,6 +11,7 @@ class WindowControls(QWidget):
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
         btn_minimize = QPushButton("–")
+        btn_minimize.setAccessibleName("minimizeWindow")
         btn_minimize.setFixedSize(32, 32)
         btn_minimize.setStyleSheet("""
             QPushButton {
@@ -28,6 +29,7 @@ class WindowControls(QWidget):
         btn_minimize.clicked.connect(main_window.showMinimized)
 
         btn_close = QPushButton("✕")
+        btn_close.setAccessibleName("closeWindow")
         btn_close.setFixedSize(32, 32)
         btn_close.setStyleSheet("""
             QPushButton {

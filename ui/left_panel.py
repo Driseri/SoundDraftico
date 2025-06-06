@@ -58,6 +58,7 @@ class LeftPanel(QFrame):
         left_main_vbox.setSpacing(12)
 
         settings_btn = QPushButton("⚙")
+        settings_btn.setAccessibleName("openSettings")
         settings_btn.setFixedSize(38, 38)
         settings_btn.setStyleSheet(f"""
             QPushButton {{
@@ -106,6 +107,7 @@ class LeftPanel(QFrame):
         ctrl_row = QHBoxLayout()
         
         self.btn_play = QPushButton("▶")
+        self.btn_play.setAccessibleName("startRecording")
         self.btn_play.setFixedSize(44, 44)
         self.btn_play.setStyleSheet(f"""
             QPushButton {{
@@ -117,6 +119,7 @@ class LeftPanel(QFrame):
             QPushButton:hover {{ background: #40954A; }}
         """)
         self.btn_stop = QPushButton("■")
+        self.btn_stop.setAccessibleName("stopRecording")
         self.btn_stop.setFixedSize(44, 44)
         self.btn_stop.setStyleSheet(f"""
             QPushButton {{
