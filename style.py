@@ -17,3 +17,27 @@ CONSOLE_BG = "#19202B"
 CONSOLE_TEXT = "#C3E2F5"
 SETTINGS_BG = "#232A36"
 SETTINGS_TEXT = "#90A4D4"
+
+# Fluent-style scrollbar used across the application
+SCROLLBAR_STYLE = f"""
+    QScrollBar:vertical {{
+        background: transparent;
+        width: 8px;
+        margin: 0px;
+    }}
+    QScrollBar::handle:vertical {{
+        background: #3F4A5A;
+        border-radius: 4px;
+        min-height: 20px;
+    }}
+    QScrollBar::handle:vertical:hover {{
+        background: {COLOR_ACCENT};
+    }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+        background: none;
+        height: 0px;
+    }}
+    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+        background: none;
+    }}
+"""
