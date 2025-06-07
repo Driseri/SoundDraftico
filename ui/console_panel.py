@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
 )
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QTextCursor
 from style import *
 from log_buffer import LogBuffer
 
@@ -57,13 +58,14 @@ class ConsolePanel(QFrame):
         )
 
         # Оборачиваем QTextEdit в скролл, чтобы всегда был вертикальный скроллбар
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("background: transparent; border:none;")
-        scroll.setWidget(self.console_box)
-        vbox.addWidget(scroll)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setStyleSheet("background: transparent; border:none;")
+        self.scroll_area.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
+        self.scroll_area.setWidget(self.console_box)
+        vbox.addWidget(self.scroll_area)
 
         # Пример вывода лога при запуске
         self.insert_log([
@@ -88,3 +90,10 @@ class ConsolePanel(QFrame):
             lines.append(line)
         self._buffer.extend(lines)
         self.console_box.setHtml(self._buffer.render_html("<br>"))
+        # Перемещаем курсор в конец и скроллим вниз
+        cursor = self.console_box.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        self.console_box.setTextCursor(cursor)
+        self.console_box.ensureCursorVisible()
+        bar = self.scroll_area.verticalScrollBar()
+        bar.setValue(bar.maximum())

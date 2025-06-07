@@ -184,6 +184,7 @@ class LeftPanel(QFrame):
         self.records_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
         self.records_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.records_scroll.setStyleSheet("background: transparent; border: none;")
+        self.records_scroll.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
         self.records_widget = QWidget()
         self.records_layout = QVBoxLayout(self.records_widget)
         self.records_layout.setContentsMargins(18, 4, 18, 4)
