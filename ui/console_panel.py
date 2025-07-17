@@ -15,54 +15,63 @@ class ConsolePanel(QFrame):
         super().__init__()
         self._buffer = LogBuffer(max_logs)
         self.setObjectName("right_frame")
-        self.setFixedWidth(440)
-        # Скругление и фон у всего фрейма
+        self.setFixedWidth(480)
+        # Material Design 3 console panel
         self.setStyleSheet(f"""
             QFrame#right_frame {{
-                background: {CONSOLE_BG};
-                border-radius: 20px;
+                background: {SURFACE_CONTAINER_HIGH};
+                border-radius: 16px;
+                border: none;
             }}
         """)
         vbox = QVBoxLayout(self)
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.setSpacing(0)
 
-        # Заголовок консоли
+        # Material Design 3 console title
         console_title = QLabel("Console")
         console_title.setStyleSheet(f"""
-            background: transparent;   /* важно! */
-            color: {LABEL_TEXT};
-            font-size: 18px;
-            font-weight: bold;
-            padding-left: 18px;
-            padding-top: 16px;
-            padding-bottom: 8px;
+            background: transparent;
+            color: {ON_SURFACE};
+            font-size: 20px;
+            font-weight: 500;
+            padding-left: 20px;
+            padding-top: 20px;
+            padding-bottom: 12px;
         """)
         vbox.addWidget(console_title)
 
-        # --- Область с логами ---
+        # --- Material Design 3 log area ---
         self.console_box = QTextEdit()
         self.console_box.setReadOnly(True)
-        self.console_box.setStyleSheet(
-            f"""
-            background: {CONSOLE_BG};
-            color: {CONSOLE_TEXT};
-            border-radius: 12px;
-            border: none;
-            font-size:14px;
-            margin-left:0px;
-            margin-right:0px;
-            padding-left:18px;
-            padding-right:18px;
-            """
-        )
+        self.console_box.setStyleSheet(f"""
+            QTextEdit {{
+                background: {SURFACE};
+                color: {ON_SURFACE};
+                border-radius: 12px;
+                border: none;
+                font-size: 13px;
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                line-height: 1.4;
+                padding: 16px 20px;
+                selection-background-color: {PRIMARY};
+                selection-color: {ON_PRIMARY};
+            }}
+        """)
 
-        # Оборачиваем QTextEdit в скролл, чтобы всегда был вертикальный скроллбар
+        # Material Design 3 scroll area
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll_area.setStyleSheet("background: transparent; border:none;")
+        self.scroll_area.setStyleSheet(f"""
+            QScrollArea {{
+                background: transparent;
+                border: none;
+                margin: 0px 16px 16px 16px;
+                border-radius: 12px;
+            }}
+        """)
         self.scroll_area.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
         self.scroll_area.setWidget(self.console_box)
         vbox.addWidget(self.scroll_area)

@@ -1,4 +1,5 @@
 from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QWidget, QSizePolicy
+from style import *
 
 class WindowControls(QWidget):
     def __init__(self, main_window):
@@ -10,37 +11,47 @@ class WindowControls(QWidget):
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
-        btn_minimize = QPushButton("–")
-        btn_minimize.setFixedSize(32, 32)
-        btn_minimize.setStyleSheet("""
-            QPushButton {
-                background: none;
-                color: #AAB8CC;
-                font-size: 18px;
+        btn_minimize = QPushButton("−")
+        btn_minimize.setFixedSize(40, 40)
+        btn_minimize.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {ON_SURFACE};
+                font-size: 16px;
+                font-weight: 500;
                 border: none;
-                border-radius: 16px;
-            }
-            QPushButton:hover {
-                background: #293448;
-                color: #55aaff;
-            }
+                border-radius: 20px;
+            }}
+            QPushButton:hover {{
+                background: {PRIMARY_CONTAINER};
+                color: {PRIMARY};
+            }}
+            QPushButton:pressed {{
+                background: {PRIMARY};
+                color: {ON_PRIMARY};
+            }}
         """)
         btn_minimize.clicked.connect(main_window.showMinimized)
 
-        btn_close = QPushButton("✕")
-        btn_close.setFixedSize(32, 32)
-        btn_close.setStyleSheet("""
-            QPushButton {
-                background: none;
-                color: #AAB8CC;
+        btn_close = QPushButton("×")
+        btn_close.setFixedSize(40, 40)
+        btn_close.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {ERROR};
                 font-size: 18px;
+                font-weight: 500;
                 border: none;
-                border-radius: 16px;
-            }
-            QPushButton:hover {
-                background: #E25454;
-                color: white;
-            }
+                border-radius: 20px;
+            }}
+            QPushButton:hover {{
+                background: {ERROR_CONTAINER};
+                color: {ON_ERROR};
+            }}
+            QPushButton:pressed {{
+                background: {ERROR};
+                color: {ON_PRIMARY};
+            }}
         """)
         btn_close.clicked.connect(main_window.close)
 

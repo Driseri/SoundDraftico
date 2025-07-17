@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QMessageBox
 
-from style import LABEL_TEXT
+from style import (LABEL_TEXT, SURFACE_CONTAINER_HIGH, SURFACE_CONTAINER_HIGHEST, ON_SURFACE, SURFACE_VARIANT, ON_SURFACE_VARIANT, PRIMARY, ON_PRIMARY)
 from .utils import open_in_folder, open_file
 
 
@@ -18,63 +18,83 @@ class RecordItem(QFrame):
         self._settings = settings
         self._transcribe_cb = transcribe_cb
         self._txt_path = self._calc_transcript_path(path)
-        self.setFixedHeight(48)
+        self.setFixedHeight(56)
 
-        # --- оформление виджета ---
-        self.setStyleSheet(
-            f"""
+        # --- Material Design 3 record item styling ---
+        self.setStyleSheet(f"""
             QFrame {{
-                background: #222A36;
-                border-radius: 12px;
-            }}
-            QLabel {{ color: {LABEL_TEXT}; font-size: 15px; }}
-            QPushButton {{
-                background: #323B4A;
-                color: {LABEL_TEXT};
+                background: {SURFACE_CONTAINER_HIGH};
+                border-radius: 16px;
                 border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                padding-bottom: 2px;
             }}
-            QPushButton:hover {{ background: #48516B; }}
-            """
-        )
+            QFrame:hover {{
+                background: {SURFACE_CONTAINER_HIGHEST};
+            }}
+            QLabel {{
+                color: {ON_SURFACE};
+                font-size: 14px;
+                font-weight: 400;
+            }}
+            QPushButton {{
+                background: {SURFACE_VARIANT};
+                color: {ON_SURFACE_VARIANT};
+                border: none;
+                border-radius: 12px;
+                font-size: 14px;
+                font-weight: 500;
+                min-width: 32px;
+                min-height: 32px;
+            }}
+            QPushButton:hover {{
+                background: {PRIMARY};
+                color: {ON_PRIMARY};
+            }}
+            QPushButton:pressed {{
+                background: {PRIMARY};
+                color: {ON_PRIMARY};
+            }}
+        """)
 
-        # --- горизонтальный контейнер с кнопками ---
+        # --- Material Design 3 horizontal layout ---
         hbox = QHBoxLayout(self)
-        hbox.setContentsMargins(16, 8, 16, 8)
+        hbox.setContentsMargins(20, 12, 20, 12)
         hbox.setSpacing(12)
 
         self.name_lbl = QLabel(os.path.basename(path))
+        self.name_lbl.setStyleSheet(f"""
+            color: {ON_SURFACE};
+            font-weight: 500;
+        """)
         hbox.addWidget(self.name_lbl, stretch=1)
 
-        # кнопка открытия папки
+        # Material Design 3 icon buttons
         show_btn = QPushButton("📂")
-        show_btn.setFixedWidth(36)
+        show_btn.setFixedSize(40, 32)
+        show_btn.setToolTip("Открыть папку")
         show_btn.clicked.connect(lambda: open_in_folder(path))
         hbox.addWidget(show_btn)
 
-        # кнопка переименования
         rename_btn = QPushButton("✎")
-        rename_btn.setFixedWidth(36)
+        rename_btn.setFixedSize(40, 32)
+        rename_btn.setToolTip("Переименовать")
         rename_btn.clicked.connect(self.rename_file)
         hbox.addWidget(rename_btn)
 
-        # кнопка удаления
         delete_btn = QPushButton("🗑")
-        delete_btn.setFixedWidth(36)
+        delete_btn.setFixedSize(40, 32)
+        delete_btn.setToolTip("Удалить")
         delete_btn.clicked.connect(self.delete_file)
         hbox.addWidget(delete_btn)
 
-        # кнопка запуска транскрибации
         trans_btn = QPushButton("📝")
-        trans_btn.setFixedWidth(36)
+        trans_btn.setFixedSize(40, 32)
+        trans_btn.setToolTip("Транскрибировать")
         trans_btn.clicked.connect(self.transcribe_file)
         hbox.addWidget(trans_btn)
 
-        # кнопка открытия транскрипта, появится после генерации
         self.open_txt_btn = QPushButton("📄")
-        self.open_txt_btn.setFixedWidth(36)
+        self.open_txt_btn.setFixedSize(40, 32)
+        self.open_txt_btn.setToolTip("Открыть транскрипт")
         self.open_txt_btn.clicked.connect(self.open_transcript)
         self.open_txt_btn.setVisible(os.path.exists(self._txt_path))
         hbox.addWidget(self.open_txt_btn)

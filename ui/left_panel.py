@@ -34,12 +34,13 @@ class LeftPanel(QFrame):
         self.progress_timer.timeout.connect(self._poll_progress)
         self.trans_thread = None
         
-        self.setFixedWidth(540)
+        self.setFixedWidth(580)
         self.setObjectName("left_frame")
         self.setStyleSheet(f"""
             QFrame#left_frame {{
-                background: {BG_LEFT};
-                border-radius: 20px;
+                background: {SURFACE_CONTAINER};
+                border-radius: 16px;
+                border: none;
             }}
         """)
         frame_layout = QVBoxLayout(self)
@@ -58,108 +59,163 @@ class LeftPanel(QFrame):
         left_main_vbox.setSpacing(12)
 
         settings_btn = QPushButton("⚙")
-        settings_btn.setFixedSize(38, 38)
+        settings_btn.setFixedSize(48, 48)
         settings_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {SETTINGS_BG};
-                color: {SETTINGS_TEXT};
+                background: {SURFACE_CONTAINER_HIGH};
+                color: {ON_SURFACE_VARIANT};
                 border: none;
-                border-radius: 18px;
-                font-size: 19px;
+                border-radius: 24px;
+                font-size: 20px;
+                font-weight: 400;
             }}
             QPushButton:hover {{
-                background: {TAB_ACTIVE};
+                background: {SURFACE_CONTAINER_HIGHEST};
+                color: {ON_SURFACE};
+            }}
+            QPushButton:pressed {{
+                background: {PRIMARY};
+                color: {ON_PRIMARY};
             }}
         """)
         settings_btn.clicked.connect(self.show_settings)
         left_main_vbox.addWidget(settings_btn, alignment=Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
-        # Вкладки
+        # Material Design 3 Segmented Button (Tabs)
         tab_row = QHBoxLayout()
+        tab_row.setSpacing(4)
+        
         tab_live = QPushButton("● Live")
         tab_live.setEnabled(False)
-        tab_live.setFixedHeight(32)
-        tab_live.setFixedWidth(90)
+        tab_live.setFixedHeight(40)
+        tab_live.setFixedWidth(100)
         tab_live.setStyleSheet(f"""
             QPushButton {{
-                background: {TAB_ACTIVE};
-                color: {TAB_ACTIVE_TEXT};
-                border-radius: 15px;
-                font-weight: bold;
+                background: {PRIMARY_CONTAINER};
+                color: {ON_PRIMARY_CONTAINER};
+                border: none;
+                border-radius: 20px;
+                font-weight: 500;
+                font-size: 14px;
             }}
         """)
+        
         tab_off = QPushButton("Offline")
-        tab_off.setFixedHeight(32)
-        tab_off.setFixedWidth(90)
+        tab_off.setFixedHeight(40)
+        tab_off.setFixedWidth(100)
         tab_off.setStyleSheet(f"""
             QPushButton {{
-                background: {TAB_INACTIVE};
-                color: {TAB_INACTIVE_TEXT};
-                border-radius: 15px;
+                background: transparent;
+                color: {ON_SURFACE_VARIANT};
+                border: 1px solid {SURFACE_VARIANT};
+                border-radius: 20px;
+                font-weight: 500;
+                font-size: 14px;
+            }}
+            QPushButton:hover {{
+                background: rgba(103, 80, 164, 0.08);
+                color: {ON_SURFACE};
             }}
         """)
+        
         tab_row.addWidget(tab_live)
         tab_row.addWidget(tab_off)
+        tab_row.addStretch()
         left_main_vbox.addLayout(tab_row)
 
-        # Кнопки управления
+        # Material Design 3 FAB-style control buttons
         ctrl_row = QHBoxLayout()
+        ctrl_row.setSpacing(16)
         
         self.btn_play = QPushButton("▶")
-        self.btn_play.setFixedSize(44, 44)
+        self.btn_play.setFixedSize(56, 56)
         self.btn_play.setStyleSheet(f"""
             QPushButton {{
-                background: {BTN_PLAY};
-                color: {BTN_TEXT};
-                font-size: 19px;
-                border-radius: 22px;
+                background: {SUCCESS_CONTAINER};
+                color: {SUCCESS};
+                font-size: 20px;
+                font-weight: 500;
+                border: none;
+                border-radius: 28px;
             }}
-            QPushButton:hover {{ background: #40954A; }}
+            QPushButton:hover {{
+                background: {SUCCESS};
+                color: {ON_SUCCESS};
+                box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+            }}
+            QPushButton:pressed {{
+                background: {SUCCESS};
+                color: {ON_SUCCESS};
+                box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2);
+            }}
         """)
+        
         self.btn_stop = QPushButton("■")
-        self.btn_stop.setFixedSize(44, 44)
+        self.btn_stop.setFixedSize(56, 56)
         self.btn_stop.setStyleSheet(f"""
             QPushButton {{
-                background: {BTN_STOP};
-                color: {BTN_TEXT};
-                font-size: 19px;
-                border-radius: 22px;
+                background: {ERROR_CONTAINER};
+                color: {ERROR};
+                font-size: 18px;
+                font-weight: 500;
+                border: none;
+                border-radius: 28px;
             }}
-            QPushButton:hover {{ background: #FF5507; }}
+            QPushButton:hover {{
+                background: {ERROR};
+                color: {ON_ERROR};
+                box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+            }}
+            QPushButton:pressed {{
+                background: {ERROR};
+                color: {ON_ERROR};
+                box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2);
+            }}
         """)
         
         ctrl_row.addWidget(self.btn_play)
         ctrl_row.addWidget(self.btn_stop)
+        ctrl_row.addStretch()
         left_main_vbox.addLayout(ctrl_row)
 
-        # ---- info frame for current recording ----
+        # ---- Material Design 3 info card for current recording ----
         self.record_frame = QFrame()
-        self.record_frame.setStyleSheet(
-            """
-            QFrame {
-                background: #222A36;
-                border-radius: 12px;
-            }
-            QLabel {
-                font-size: 15px;
-            }
-            """
-        )
+        self.record_frame.setStyleSheet(f"""
+            QFrame {{
+                background: {SURFACE_CONTAINER_HIGH};
+                border-radius: 16px;
+                border: none;
+            }}
+            QLabel {{
+                font-size: 14px;
+                font-weight: 400;
+            }}
+        """)
 
         info_hbox = QHBoxLayout(self.record_frame)
-        info_hbox.setContentsMargins(16, 8, 16, 8)
-        info_hbox.setSpacing(12)
+        info_hbox.setContentsMargins(20, 12, 20, 12)
+        info_hbox.setSpacing(16)
 
         self.file_lbl = QLabel()
-        self.file_lbl.setStyleSheet(f"color: {COLOR_ACCENT};")
+        self.file_lbl.setStyleSheet(f"""
+            color: {PRIMARY};
+            font-weight: 500;
+        """)
 
         self.time_lbl = QLabel("00:00:00")
-        self.time_lbl.setStyleSheet(f"color: {LABEL_TEXT};")
+        self.time_lbl.setStyleSheet(f"""
+            color: {ON_SURFACE};
+            font-weight: 500;
+            font-family: 'Consolas', 'Monaco', monospace;
+        """)
 
         self.size_lbl = QLabel("0 KB")
-        self.size_lbl.setStyleSheet(f"color: {SETTINGS_TEXT};")
+        self.size_lbl.setStyleSheet(f"""
+            color: {ON_SURFACE_VARIANT};
+            font-weight: 400;
+        """)
 
-        info_hbox.addWidget(self.file_lbl)
+        info_hbox.addWidget(self.file_lbl, 1)
         info_hbox.addWidget(self.time_lbl)
         info_hbox.addWidget(self.size_lbl)
 
@@ -172,23 +228,36 @@ class LeftPanel(QFrame):
         self.btn_stop.clicked.connect(self.stop_record)
 
 
-        # --- Список записей ---
+        # --- Material Design 3 Records List ---
         status_lbl = QLabel("Записи")
-        status_lbl.setStyleSheet(
-            f"color: {LABEL_TEXT}; font-size:16px; font-weight: bold; margin-left:18px;"
-        )
+        status_lbl.setStyleSheet(f"""
+            color: {ON_SURFACE};
+            font-size: 18px;
+            font-weight: 500;
+            margin-left: 20px;
+            margin-top: 8px;
+            margin-bottom: 4px;
+        """)
         left_main_vbox.addWidget(status_lbl)
 
         self.records_scroll = QScrollArea()
         self.records_scroll.setWidgetResizable(True)
-        self.records_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.records_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.records_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.records_scroll.setStyleSheet("background: transparent; border: none;")
+        self.records_scroll.setStyleSheet(f"""
+            QScrollArea {{
+                background: transparent;
+                border: none;
+                border-radius: 8px;
+            }}
+        """)
         self.records_scroll.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
+        
         self.records_widget = QWidget()
+        self.records_widget.setStyleSheet("background: transparent;")
         self.records_layout = QVBoxLayout(self.records_widget)
-        self.records_layout.setContentsMargins(18, 4, 18, 4)
-        self.records_layout.setSpacing(8)
+        self.records_layout.setContentsMargins(20, 8, 20, 8)
+        self.records_layout.setSpacing(12)
         self.records_scroll.setWidget(self.records_widget)
         left_main_vbox.addWidget(self.records_scroll, 1)
 

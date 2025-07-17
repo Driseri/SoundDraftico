@@ -25,34 +25,72 @@ class SettingsPanel(QWidget):
         vbox = QVBoxLayout(self)
         vbox.setContentsMargins(24, 18, 24, 24)
         vbox.setSpacing(12)
-        # Кнопка возврата к основному экрану
+        # Material Design 3 back button
         back_btn = QPushButton("← Назад")
-        back_btn.setFixedWidth(92)
+        back_btn.setFixedHeight(40)
         back_btn.setStyleSheet(f"""
             QPushButton {{
-                background: {TAB_ACTIVE};
-                color: {TAB_ACTIVE_TEXT};
-                border-radius: 15px;
-                font-weight: bold;
+                background: {SURFACE_CONTAINER_HIGH};
+                color: {ON_SURFACE};
+                border: none;
+                border-radius: 20px;
+                font-weight: 500;
+                font-size: 14px;
+                padding: 0px 20px;
+            }}
+            QPushButton:hover {{
+                background: {SURFACE_CONTAINER_HIGHEST};
+            }}
+            QPushButton:pressed {{
+                background: {PRIMARY};
+                color: {ON_PRIMARY};
             }}
         """)
         back_btn.clicked.connect(back_callback)
         vbox.addWidget(back_btn, alignment=Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
-        # Заголовок раздела
+        # Material Design 3 settings title
         settings_lbl = QLabel("Настройки")
-        settings_lbl.setStyleSheet(f"color: {LABEL_TEXT}; font-size: 22px; font-weight: bold; margin-left:22px;")
+        settings_lbl.setStyleSheet(f"""
+            color: {ON_SURFACE};
+            font-size: 24px;
+            font-weight: 500;
+            margin-left: 20px;
+            margin-top: 8px;
+            margin-bottom: 16px;
+        """)
         vbox.addWidget(settings_lbl, alignment=Qt.AlignmentFlag.AlignLeft)
 
-        # --- Список аудио-устройств ---
+        # --- Material Design 3 audio devices dropdown ---
         devices = get_audio_lines()
         self.device_combo = QComboBox()
-        self.device_combo.setStyleSheet("""
-            background: #232A36;
-            color: #AAB8CC;
-            border-radius: 6px;
+        self.device_combo.setStyleSheet(f"""
+            QComboBox {{
+                background: {SURFACE_CONTAINER_HIGH};
+                color: {ON_SURFACE};
+                border: 1px solid {SURFACE_VARIANT};
+                border-radius: 12px;
+                padding: 8px 12px;
+                font-size: 14px;
+                min-height: 20px;
+            }}
+            QComboBox:hover {{
+                border-color: {PRIMARY};
+            }}
+            QComboBox:focus {{
+                border-color: {PRIMARY};
+                border-width: 2px;
+            }}
+            QComboBox::drop-down {{
+                border: none;
+                width: 20px;
+            }}
+            QComboBox::down-arrow {{
+                image: none;
+                border: none;
+            }}
         """)
-        self.device_combo.setFixedWidth(260)
+        self.device_combo.setFixedWidth(300)
         if devices:
             self.device_combo.addItems(devices)
         else:
@@ -130,42 +168,66 @@ class SettingsPanel(QWidget):
     
 
 class FolderSelectFrame(QFrame):
-    """Поле выбора папки с кнопкой обзора."""
+    """Material Design 3 folder selection field."""
     def __init__(self, label_text, initial_value="", parent=None):
         super().__init__(parent)
         self.setStyleSheet(f"""
             QFrame {{
-                background: #222A36;
-                border-radius: 12px;
+                background: {SURFACE_CONTAINER_HIGH};
+                border-radius: 16px;
+                border: none;
             }}
         """)
         hbox = QHBoxLayout(self)
-        hbox.setContentsMargins(16, 8, 16, 8)
-        hbox.setSpacing(12)
+        hbox.setContentsMargins(20, 12, 20, 12)
+        hbox.setSpacing(16)
         
         self.label = QLabel(label_text)
-        self.label.setStyleSheet("color: #AAB8CC; font-size: 15px;")
+        self.label.setStyleSheet(f"""
+            color: {ON_SURFACE};
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 140px;
+        """)
+        
         self.lineedit = QLineEdit()
         self.lineedit.setText(initial_value)
-        self.lineedit.setStyleSheet("""
-            background: #232A36;
-            color: #AAB8CC;
-            border-radius: 6px;
-            padding: 2px 8px;
-        """)
-        self.button = QPushButton("…")
-        self.button.setFixedWidth(36)
-        self.button.setStyleSheet("""
-            QPushButton {
-                background: #323B4A;
-                color: #AAB8CC;
-                border: none;
+        self.lineedit.setStyleSheet(f"""
+            QLineEdit {{
+                background: {SURFACE};
+                color: {ON_SURFACE};
+                border: 1px solid {SURFACE_VARIANT};
                 border-radius: 8px;
-                font-size: 18px;
-                padding-bottom: 2px;
-            }
-            QPushButton:hover { background: #48516B; }
+                padding: 8px 12px;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border-color: {PRIMARY};
+                border-width: 2px;
+            }}
         """)
+        
+        self.button = QPushButton("…")
+        self.button.setFixedSize(40, 36)
+        self.button.setStyleSheet(f"""
+            QPushButton {{
+                background: {SURFACE_VARIANT};
+                color: {ON_SURFACE_VARIANT};
+                border: none;
+                border-radius: 12px;
+                font-size: 16px;
+                font-weight: 500;
+            }}
+            QPushButton:hover {{
+                background: {PRIMARY};
+                color: {ON_PRIMARY};
+            }}
+            QPushButton:pressed {{
+                background: {PRIMARY};
+                color: {ON_PRIMARY};
+            }}
+        """)
+        
         hbox.addWidget(self.label)
         hbox.addWidget(self.lineedit, stretch=1)
         hbox.addWidget(self.button)
@@ -180,19 +242,26 @@ class FolderSelectFrame(QFrame):
         self.lineedit.setText(text)
 
 class InputFrame(QFrame):
-    """Контейнер с подписью и вложенным виджетом."""
+    """Material Design 3 input container with label."""
     def __init__(self, label_text, widget, parent=None):
         super().__init__(parent)
-        self.setStyleSheet("""
-            QFrame {
-                background: #222A36;
-                border-radius: 12px;
-            }
+        self.setStyleSheet(f"""
+            QFrame {{
+                background: {SURFACE_CONTAINER_HIGH};
+                border-radius: 16px;
+                border: none;
+            }}
         """)
         hbox = QHBoxLayout(self)
-        hbox.setContentsMargins(16, 8, 16, 8)
-        hbox.setSpacing(12)
+        hbox.setContentsMargins(20, 12, 20, 12)
+        hbox.setSpacing(16)
+        
         label = QLabel(label_text)
-        label.setStyleSheet("color: #AAB8CC; font-size: 15px;")
+        label.setStyleSheet(f"""
+            color: {ON_SURFACE};
+            font-size: 14px;
+            font-weight: 500;
+            min-width: 140px;
+        """)
         hbox.addWidget(label)
         hbox.addWidget(widget, stretch=1)

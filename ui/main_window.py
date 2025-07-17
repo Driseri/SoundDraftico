@@ -1,5 +1,6 @@
-from PyQt6.QtWidgets import QMainWindow, QVBoxLayout, QHBoxLayout, QWidget
-from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QGraphicsDropShadowEffect
+from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtProperty
+from PyQt6.QtGui import QColor
 from style import *
 from ui.window_controls import WindowControls
 from ui.left_panel import LeftPanel
@@ -11,22 +12,36 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         # --- Параметры главного окна ---
-        self.setWindowTitle("Speech Transcriber")
-        self.setFixedSize(1100, 540)
-        self.setStyleSheet(f"background: {BG_MAIN};")
+        self.setWindowTitle("SoundDraftico")
+        self.setFixedSize(1200, 600)
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background: {BACKGROUND};
+                border-radius: 16px;
+            }}
+        """)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
 
-        # Хак на закругленные углы
+        # Material Design elevation shadow
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        
+        # Add drop shadow effect
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(20)
+        shadow.setColor(QColor(0, 0, 0, 80))
+        shadow.setOffset(0, 4)
+        self.setGraphicsEffect(shadow)
+        
         self.show()
         hwnd = int(self.winId())
         self.set_rounded_corners(hwnd)
 
         # --- Центральный виджет и основной layout ---
         central = QWidget()
+        central.setStyleSheet(f"background: {BACKGROUND}; border-radius: 12px;")
         vertical_layout = QVBoxLayout(central)
-        vertical_layout.setContentsMargins(24, 24, 24, 24)
-        vertical_layout.setSpacing(0)
+        vertical_layout.setContentsMargins(16, 16, 16, 16)
+        vertical_layout.setSpacing(16)
 
         # Header с кнопками
         self.window_controls = WindowControls(self)
@@ -45,7 +60,6 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.left_panel)
         main_layout.addWidget(self.console_panel)
         
-
         # Устанавливаем центральный виджет
         self.setCentralWidget(central)
 
