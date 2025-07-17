@@ -125,13 +125,7 @@ class SettingsPanel(QWidget):
         vbox.addWidget(self.trans_folder_frame)
 
 
-        f2_lbl = QLabel("Язык по умолчанию:")
-        f2_lbl.setStyleSheet(f"color: {LABEL_TEXT}; font-size: 15px; margin-left:36px;")
-        vbox.addWidget(f2_lbl)
-        f2_entry = QLineEdit()
-        f2_entry.setFixedWidth(260)
-        f2_entry.setStyleSheet("margin-left:36px;")
-        vbox.addWidget(f2_entry)
+        # Добавляем отступ внизу
         vbox.addStretch(1)
 
     def selected_device(self) -> str:

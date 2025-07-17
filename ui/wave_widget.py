@@ -34,7 +34,10 @@ class WaveWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.fillRect(self.rect(), QColor("#1C1B1F"))
 
-        pen = QPen(QColor("#6750A4"), 2)
+        # Draw wave with Material Design primary color
+        pen = QPen(QColor("#6750A4"), 2.5)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         painter.setPen(pen)
 
         path = self.create_wave_path()

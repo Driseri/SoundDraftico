@@ -123,9 +123,13 @@ class LeftPanel(QFrame):
         tab_row.addStretch()
         left_main_vbox.addLayout(tab_row)
 
-        # Material Design 3 FAB-style control buttons
+        # Material Design 3 FAB-style control buttons - centered
         ctrl_row = QHBoxLayout()
         ctrl_row.setSpacing(16)
+        ctrl_row.setContentsMargins(0, 8, 0, 8)
+        
+        # Add stretch before buttons to center them
+        ctrl_row.addStretch(1)
         
         self.btn_play = QPushButton("▶")
         self.btn_play.clicked.connect(self.start_recording)
@@ -177,7 +181,10 @@ class LeftPanel(QFrame):
         
         ctrl_row.addWidget(self.btn_play)
         ctrl_row.addWidget(self.btn_stop)
-        ctrl_row.addStretch()
+        
+        # Add stretch after buttons to center them
+        ctrl_row.addStretch(1)
+        
         left_main_vbox.addLayout(ctrl_row)
 
         # ---- Material Design 3 info card for current recording ----

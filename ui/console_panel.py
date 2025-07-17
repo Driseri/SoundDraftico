@@ -43,18 +43,34 @@ class ConsolePanel(QFrame):
             font-weight: 500;
         """)
         title_layout.addWidget(console_title)
-
+        title_layout.addStretch()
+        
+        # Activity indicator with Material Design styling
         self.activity_indicator = QWidget()
-        self.activity_indicator.setFixedSize(10, 10)
-        self.activity_indicator.setStyleSheet(f"background-color: {SUCCESS}; border-radius: 5px;")
+        self.activity_indicator.setFixedSize(12, 12)
+        self.activity_indicator.setStyleSheet(f"""
+            background-color: {SUCCESS}; 
+            border-radius: 6px;
+            border: none;
+        """)
         self.activity_indicator.setVisible(False)
         title_layout.addWidget(self.activity_indicator)
-        title_layout.addStretch()
 
         vbox.addLayout(title_layout)
-
+        
+        # Wave animation container with Material Design styling
+        wave_container = QHBoxLayout()
+        wave_container.setContentsMargins(20, 0, 20, 12)
+        
         self.wave_widget = WaveWidget()
-        vbox.addWidget(self.wave_widget)
+        self.wave_widget.setFixedHeight(60)  # Smaller height for better aesthetics
+        self.wave_widget.setStyleSheet(f"""
+            border-radius: 12px;
+            background-color: {SURFACE};
+        """)
+        wave_container.addWidget(self.wave_widget)
+        
+        vbox.addLayout(wave_container)
         self.wave_widget.setVisible(False) # Initially hidden
 
         # --- Material Design 3 log area ---
@@ -68,7 +84,7 @@ class ConsolePanel(QFrame):
                 border: none;
                 font-size: 13px;
                 font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-                line-height: 1.4;
+                line-height: 1.6;
                 padding: 16px 20px;
                 selection-background-color: {PRIMARY};
                 selection-color: {ON_PRIMARY};
@@ -114,11 +130,11 @@ class ConsolePanel(QFrame):
             self.wave_widget.stop_animation()
 
     def insert_log(self, records):
-        """Добавить записи в консоль."""
+        """Добавить записи в консоль с улучшенным форматированием."""
         lines = []
         for time, text, color in records:
             line = (
-                f'<span style="color:#3FC7F3">{time}</span>'
+                f'<span style="color:{PRIMARY}; font-weight:500;">{time}</span> '
                 f'<span style="color:{color}">{text}</span>'
             )
             lines.append(line)

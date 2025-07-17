@@ -59,14 +59,14 @@ SETTINGS_TEXT = ON_SURFACE_VARIANT
 SCROLLBAR_STYLE = f"""
     QScrollBar:vertical {{
         background: transparent;
-        width: 12px;
+        width: 8px;
         margin: 0px;
-        border-radius: 6px;
+        border-radius: 4px;
     }}
     QScrollBar::handle:vertical {{
         background: {SURFACE_VARIANT};
-        border-radius: 6px;
-        min-height: 24px;
+        border-radius: 4px;
+        min-height: 40px;
         margin: 2px;
     }}
     QScrollBar::handle:vertical:hover {{
@@ -80,6 +80,32 @@ SCROLLBAR_STYLE = f"""
         height: 0px;
     }}
     QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+        background: none;
+    }}
+    
+    QScrollBar:horizontal {{
+        background: transparent;
+        height: 8px;
+        margin: 0px;
+        border-radius: 4px;
+    }}
+    QScrollBar::handle:horizontal {{
+        background: {SURFACE_VARIANT};
+        border-radius: 4px;
+        min-width: 40px;
+        margin: 2px;
+    }}
+    QScrollBar::handle:horizontal:hover {{
+        background: {PRIMARY};
+    }}
+    QScrollBar::handle:horizontal:pressed {{
+        background: {PRIMARY};
+    }}
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+        background: none;
+        width: 0px;
+    }}
+    QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
         background: none;
     }}
 """
