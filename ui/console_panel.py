@@ -4,11 +4,14 @@ from PyQt6.QtWidgets import (
     QLabel,
     QTextEdit,
     QScrollArea,
+    QHBoxLayout,
+    QWidget
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QTextCursor
+from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QTextCursor, QColor
 from style import *
 from log_buffer import LogBuffer
+from .wave_widget import WaveWidget
 
 class ConsolePanel(QFrame):
     def __init__(self, max_logs: int = 1000):
@@ -29,17 +32,30 @@ class ConsolePanel(QFrame):
         vbox.setSpacing(0)
 
         # Material Design 3 console title
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(20, 20, 20, 12)
+
         console_title = QLabel("Console")
         console_title.setStyleSheet(f"""
             background: transparent;
             color: {ON_SURFACE};
             font-size: 20px;
             font-weight: 500;
-            padding-left: 20px;
-            padding-top: 20px;
-            padding-bottom: 12px;
         """)
-        vbox.addWidget(console_title)
+        title_layout.addWidget(console_title)
+
+        self.activity_indicator = QWidget()
+        self.activity_indicator.setFixedSize(10, 10)
+        self.activity_indicator.setStyleSheet(f"background-color: {SUCCESS}; border-radius: 5px;")
+        self.activity_indicator.setVisible(False)
+        title_layout.addWidget(self.activity_indicator)
+        title_layout.addStretch()
+
+        vbox.addLayout(title_layout)
+
+        self.wave_widget = WaveWidget()
+        vbox.addWidget(self.wave_widget)
+        self.wave_widget.setVisible(False) # Initially hidden
 
         # --- Material Design 3 log area ---
         self.console_box = QTextEdit()
@@ -74,6 +90,7 @@ class ConsolePanel(QFrame):
         """)
         self.scroll_area.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
         self.scroll_area.setWidget(self.console_box)
+        self.scroll_area.verticalScrollBar().setStyleSheet(SCROLLBAR_STYLE)
         vbox.addWidget(self.scroll_area)
 
         # Пример вывода лога при запуске
@@ -87,6 +104,14 @@ class ConsolePanel(QFrame):
             ("10:57:53", "ERROR An unexpected", "#FF7043"),
             ("10:57:55", "error occurred", "#FF7043")
         ])
+
+    def set_recording_state(self, is_recording):
+        self.wave_widget.setVisible(is_recording)
+        self.activity_indicator.setVisible(is_recording)
+        if is_recording:
+            self.wave_widget.start_animation()
+        else:
+            self.wave_widget.stop_animation()
 
     def insert_log(self, records):
         """Добавить записи в консоль."""

@@ -128,6 +128,7 @@ class LeftPanel(QFrame):
         ctrl_row.setSpacing(16)
         
         self.btn_play = QPushButton("▶")
+        self.btn_play.clicked.connect(self.start_recording)
         self.btn_play.setFixedSize(56, 56)
         self.btn_play.setStyleSheet(f"""
             QPushButton {{
@@ -151,6 +152,7 @@ class LeftPanel(QFrame):
         """)
         
         self.btn_stop = QPushButton("■")
+        self.btn_stop.clicked.connect(self.stop_recording)
         self.btn_stop.setFixedSize(56, 56)
         self.btn_stop.setStyleSheet(f"""
             QPushButton {{
@@ -337,6 +339,14 @@ class LeftPanel(QFrame):
             self.console.insert_log([(datetime.datetime.now().strftime("%H:%M:%S"), "ERROR Record failed", "#FF7043")])
         self.ffmpeg = None
         self.record_frame.setVisible(False)
+
+    def start_recording(self):
+        self.console.set_recording_state(True)
+        # Add recording logic here
+
+    def stop_recording(self):
+        self.console.set_recording_state(False)
+        # Add stop recording logic here
 
     def _poll_progress(self):
         if self.ffmpeg:
